@@ -4,7 +4,10 @@ from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 import math
 from datetime import datetime
-date_format = "%Y-%m-%d %H:%M:%S.%f"
+import sys
+sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
+import utils
+time_format = "%H:%M:%S.%f"
 
 path='D:\\CPR_data_raw\\P0\\s1\\arduino\\2023-12-03-12_46_42.txt'
 
@@ -23,12 +26,12 @@ def get_data(path):
             continue
         line=l.strip()
         splt=line.split(' ')
-        ts=' '.join(splt[0:2])
+        ts=splt[1]
+        ts_f=utils.get_float_time(datetime.strptime(ts, time_format).time())
         depth=float(splt[-1])
-        ts_list.append(ts)
+        ts_list.append(ts_f)
         depth_list.append(depth)
-    time_range=(datetime.strptime(ts_list[-1], date_format)
-               -datetime.strptime(ts_list[0], date_format)).total_seconds()
+    time_range=ts_list[-1]-ts_list[0]
     sampling_rate=len(depth_list)/time_range
     return np.array(ts_list),np.array(depth_list),sampling_rate
 
@@ -36,64 +39,99 @@ window_size = 10
 def moving_variance(data, window_size):
     return np.convolve(data**2, np.ones(window_size)/window_size, mode='valid') - (np.convolve(data, np.ones(window_size)/window_size, mode='valid'))**2
 
-def get_cpr_section(data,ts):
+#automatically remove constant sections
+def get_cpr_section(data,ts,normalize=True):
     var=moving_variance(data,window_size)
     active_args=np.argwhere(var>5)
     cpr_start,cpr_end=np.min(active_args),np.max(active_args)
     data=data[cpr_start:cpr_end]
     ts=ts[cpr_start:cpr_end]
+    #normalize data
+    if normalize:
+        data=data-np.mean(data)
     return data,ts
 
 ts_list,depth_list,sampling_rate=get_data(path)
-#normaize
-depth_list=depth_list-np.mean(depth_list)
-depth,ts=get_cpr_section(depth_list,ts_list)
+# depth,ts=get_cpr_section(depth_list,ts_list)
+# #normaize
 
-plt.plot(depth)
-plt.show()
+# plt.plot(depth)
+# plt.show()
 
+# #fit a function
+# fit_window=20
+# fit_window=100
 
+# data=depth[:fit_window]
+# plt.plot(data)
+# x_fit = np.linspace(0,len(data), fit_window)
 
-def model_func(x, A, omega,d):
-    return A * np.sin(omega * x) + d
-
-ts_list=ts_list[976:3257]
-depth_list=depth_list[976:3257]
-depth_list=depth_list-np.mean(depth_list)
-plt.plot(depth_list)
-plt.show()
-
-#automatically remove constant sections
+# z = np.polyfit(x_fit,data, fit_window)
+# plt.plot(np.polyval(z,x_fit))
+# plt.show()
 
 
-signal=np.array(depth_list)
-maxima, _ = find_peaks(signal)
 
 
-date_time_obj = datetime.strptime(ts_list[32], date_format)
-
-plt.plot(signal, label='Original Signal')
-plt.plot(maxima, signal[maxima], 'x', label='Maxima', color='red')
-plt.show()
-
-# Use curve_fit to fit the data
-def model_f(x,a,b,c,d):
-  return a * np.sin(b * x+c) + d
-
-x_data=np.arange(len(depth_list))[980:3253]
-y_data=np.array(depth_list)[980:3253]
-y_data_norm=y_data-np.mean(y_data)
 
 
-params, covariance = curve_fit(model_f, x_data, y_data_norm,p0=[20,1,1,1])
-a,b,c,d = params
 
-x_fit = np.linspace(min(x_data), max(x_data), 100)
-y_fit = model_f(x_fit,a,b,c,d)
 
-plt.plot(x_data, y_data_norm, label='Original Data')
-plt.plot(x_fit, y_fit, label='Fitted Curve', color='red')
-plt.show()
+
+# def model_func(x, a, b):
+#     return a*np.sin(b * x)
+
+# params, covariance = curve_fit(model_func, data, x_fit,p0=[100,0.1])
+# a,b = params
+
+# pred=model_func(x_fit,a,b)
+
+# plt.plot(data)
+# plt.plot(pred)
+# plt.show()
+
+
+
+
+
+
+
+# ts_list=ts_list[976:3257]
+# depth_list=depth_list[976:3257]
+# depth_list=depth_list-np.mean(depth_list)
+# plt.plot(depth_list)
+# plt.show()
+
+
+
+# signal=np.array(depth_list)
+# maxima, _ = find_peaks(signal)
+
+
+# date_time_obj = datetime.strptime(ts_list[32], date_format)
+
+# plt.plot(signal, label='Original Signal')
+# plt.plot(maxima, signal[maxima], 'x', label='Maxima', color='red')
+# plt.show()
+
+# # Use curve_fit to fit the data
+# def model_f(x,a,b,c,d):
+#   return a * np.sin(b * x+c) + d
+
+# x_data=np.arange(len(depth_list))[980:3253]
+# y_data=np.array(depth_list)[980:3253]
+# y_data_norm=y_data-np.mean(y_data)
+
+
+# params, covariance = curve_fit(model_f, x_data, y_data_norm,p0=[20,1,1,1])
+# a,b,c,d = params
+
+# x_fit = np.linspace(min(x_data), max(x_data), 100)
+# y_fit = model_f(x_fit,a,b,c,d)
+
+# plt.plot(x_data, y_data_norm, label='Original Data')
+# plt.plot(x_fit, y_fit, label='Fitted Curve', color='red')
+# plt.show()
 
 
 
