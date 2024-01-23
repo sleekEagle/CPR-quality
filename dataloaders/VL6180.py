@@ -9,7 +9,7 @@ sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
 import utils
 time_format = "%H:%M:%S.%f"
 
-path='D:\\CPR_data_raw\\P0\\s1\\arduino\\2023-12-03-12_46_42.txt'
+path=r'D:\CPR_data_raw\P8\s2\arduino\2023-11-29-12_57_46.txt'
 
 def get_data(path):
     with open(path, 'r') as file:
@@ -33,7 +33,7 @@ def get_data(path):
         depth_list.append(depth)
     time_range=ts_list[-1]-ts_list[0]
     sampling_rate=len(depth_list)/time_range
-    return np.array(ts_list),np.array(depth_list),sampling_rate
+    return np.array(ts_list),-1*np.array(depth_list),sampling_rate
 
 window_size = 10
 def moving_variance(data, window_size):
@@ -43,12 +43,18 @@ def moving_variance(data, window_size):
 def get_cpr_section(data,ts,normalize=True):
     var=moving_variance(data,window_size)
     active_args=np.argwhere(var>5)
+
+    #get the inactive reagion to measure the neutral depth of the dummy
+    inactive_args=np.argwhere(var<20)
+    inactive_data=data[inactive_args]
+    median_inactive=np.median(inactive_data)
+
     cpr_start,cpr_end=np.min(active_args),np.max(active_args)
     data=data[cpr_start:cpr_end]
     ts=ts[cpr_start:cpr_end]
     #normalize data
     if normalize:
-        data=data-np.mean(data)
+        data=data-median_inactive
     return data,ts
 
 ts_list,depth_list,sampling_rate=get_data(path)
