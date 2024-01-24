@@ -9,7 +9,7 @@ sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
 import utils
 time_format = "%H:%M:%S.%f"
 
-path=r'D:\CPR_data_raw\P8\s2\arduino\2023-11-29-12_57_46.txt'
+path=r'D:\\CPR_data_raw\\P8\\s2\\arduino\\2023-11-29-12_57_46.txt'
 
 def get_data(path):
     with open(path, 'r') as file:
@@ -35,33 +35,70 @@ def get_data(path):
     sampling_rate=len(depth_list)/time_range
     return np.array(ts_list),-1*np.array(depth_list),sampling_rate
 
-window_size = 10
+window_size = 16
 def moving_variance(data, window_size):
     return np.convolve(data**2, np.ones(window_size)/window_size, mode='valid') - (np.convolve(data, np.ones(window_size)/window_size, mode='valid'))**2
 
 #automatically remove constant sections
+seg_thr=4*30
+# data=depth_list
+# ts=ts_list
 def get_cpr_section(data,ts,normalize=True):
     var=moving_variance(data,window_size)
-    active_args=np.argwhere(var>5)
+    valid_var=var>4
+    active_args=np.argwhere(var>7)
+    #detect contiguouse active sections
+    seg_list=[]
+    i=0
+    while(i<len(valid_var)):
+        if valid_var[i]:
+            for j in range(i+1,len(valid_var)):
+                if not valid_var[j]:
+                    break
+            seg_len=j-i
+            if seg_len > seg_thr:
+                seg_list.append([i,j])
+            i=j
+        else:
+            i+=1
+            continue
+    #combine adjecent sections if close together
+    seg_list_mod=[]
+    i=0
+    while i<len(seg_list):
+        if i==(len(seg_list)-1):
+            seg_list_mod.append(seg_list[i])
+            break
+        if (seg_list[i+1][0]-seg_list[i][1]) < 5:
+            seg_list_mod.append([seg_list[i][0],seg_list[i+1][1]])
+            i+=2
+        else:
+            seg_list_mod.append(seg_list[i])
+            i+=1
 
     #get the inactive reagion to measure the neutral depth of the dummy
-    inactive_args=np.argwhere(var<20)
+    #begining part must be like this
+    inactive_args=np.arange(0,seg_list_mod[0][0])
     inactive_data=data[inactive_args]
     median_inactive=np.median(inactive_data)
-
-    cpr_start,cpr_end=np.min(active_args),np.max(active_args)
-    data=data[cpr_start:cpr_end]
-    ts=ts[cpr_start:cpr_end]
     #normalize data
     if normalize:
         data=data-median_inactive
-    return data,ts
+    
+    seg_ranges=[np.arange(seg[0],seg[-1]+1) for seg in seg_list_mod]
+    cpr_depths=[data[seg_range] for seg_range in seg_ranges]
+    cpr_ts=[ts[seg_range] for seg_range in seg_ranges]
+
+    return cpr_depths,cpr_ts
 
 ts_list,depth_list,sampling_rate=get_data(path)
-# depth,ts=get_cpr_section(depth_list,ts_list)
-# #normaize
+cpr_depths,cpr_ts=get_cpr_section(depth_list,ts_list)
 
-# plt.plot(depth)
+# plt.plot(ts_list,depth_list)
+# plt.plot((valid_var)*20)
+# plt.plot(data)
+
+# plt.plot(cpr_depths[1])
 # plt.show()
 
 # #fit a function
@@ -75,7 +112,6 @@ ts_list,depth_list,sampling_rate=get_data(path)
 # z = np.polyfit(x_fit,data, fit_window)
 # plt.plot(np.polyval(z,x_fit))
 # plt.show()
-
 
 
 
