@@ -17,20 +17,19 @@ with open(kinect_ts_path, 'r') as file:
 kinect_ts=np.array([utils.get_float_time(datetime.strptime(line.strip(), kinect_ts_format).time()) for line in all_lines])
 
 ts_sensor,depth_list,sampling_rate=VL6180.get_data(depth_sensor_path)
-depth,ts_sensor=VL6180.get_cpr_section(depth_list,ts_sensor)
+cpr_depths,cpr_ts=VL6180.get_cpr_section(depth_list,ts_sensor)
 
+ts_sensor=cpr_ts[0]
+depth=cpr_depths[0]
 #select the relavent kinect data section based on depth sensor data
 t_start,t_end=ts_sensor[0],ts_sensor[-1]
 kinect_args=np.argwhere((kinect_ts>t_start) & (kinect_ts<t_end))
 
-plt.plot(depth)
-plt.show()
-
 # fit a polyormial and interpolate the GT depth at kinect ts values
 kinect_depth_interp=np.zeros_like(kinect_ts)
 num_data=np.zeros_like(kinect_ts)
-fit_window=20
-deg=8
+fit_window=8
+deg=4
 
 for i in range(kinect_args.shape[0]-fit_window):
     select_k_args=kinect_args[i:i+fit_window]
@@ -56,10 +55,8 @@ where=np.argwhere(num_data>0)
 kinect_depth_interp[where]/=num_data[where]
 
 
-
-
-plt.plot(ts_sensor,depth)
 plt.plot(kinect_ts[kinect_args],kinect_depth_interp[kinect_args])
+plt.plot(ts_sensor,depth)
 plt.show()
 
 
