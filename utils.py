@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 import shutil
+import numpy as np
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -43,3 +44,54 @@ def copy_files(file_list, source_directory, destination_directory):
         print("Destination directory already exists.")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+def read_allnum_lines(path):
+    with open(path, 'r') as file:
+        # Read all lines into a list
+        all_lines = file.readlines()
+    values=[]
+    for line in all_lines:
+        try:
+            f=float(line.strip())
+            values.append(f)
+        except:
+            pass
+    return values
+
+
+'''
+in_values: values in the input signal
+in_ts: timestamps of the input signal
+out_ts: the timestamps where the input signal is interpolated to
+
+in_values and in_ts must have the same dimentions
+out_ts must lie within in_ts. There should be no values of out_ts outside in_ts
+'''
+def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
+    #select the relavent kinect data section based on depth sensor data
+    t_start,t_end=in_ts[0],in_ts[-1]
+    kinect_ts_start,kinect_ts_end=out_ts[0],out_ts[-1]
+    assert kinect_ts_start>t_start and kinect_ts_end<t_end, "kinect ts are outside of depth sensor. Quitting..."
+    # fit a polyormial and interpolate the GT depth at kinect ts values
+    out_interp=np.zeros_like(out_ts)
+    num_data=np.zeros_like(out_ts)
+
+    for i in range(len(out_ts)-fit_window+1):
+        kinect_ts_vals=out_ts[i:i+fit_window]
+        sensor_start_arg=np.max(np.argwhere(in_ts<kinect_ts_vals[0]))
+        sensor_end_arg=np.min(np.argwhere(in_ts>kinect_ts_vals[-1]))
+
+        fit_data_ts=in_ts[sensor_start_arg:sensor_end_arg+1]
+        fit_data_depth=in_values[sensor_start_arg:sensor_end_arg+1]
+        fit_data_ts=fit_data_ts-in_ts[sensor_start_arg]
+        kinect_ts_vals=kinect_ts_vals-in_ts[sensor_start_arg]
+        
+        p=np.polyfit(fit_data_ts,fit_data_depth,deg=deg)
+        pred_depth=np.polyval(p,kinect_ts_vals)
+        out_interp[i:i+fit_window]+=pred_depth
+        num_data[i:i+fit_window]+=1
+
+    where=np.argwhere(num_data>0)
+    out_interp[where]/=num_data[where]
+    return out_interp
