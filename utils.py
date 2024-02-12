@@ -3,6 +3,7 @@ import os
 import shutil
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -72,24 +73,24 @@ out_ts must lie within in_ts. There should be no values of out_ts outside in_ts
 def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
     #select the relavent kinect data section based on depth sensor data
     t_start,t_end=in_ts[0],in_ts[-1]
-    kinect_ts_start,kinect_ts_end=out_ts[0],out_ts[-1]
-    assert kinect_ts_start>t_start and kinect_ts_end<t_end, "kinect ts are outside of depth sensor. Quitting..."
+    out_ts_start,out_ts_end=out_ts[0],out_ts[-1]
+    assert out_ts_start>=t_start and out_ts_end<=t_end, "out ts are outside of depth sensor. Quitting..."
     # fit a polyormial and interpolate the GT depth at kinect ts values
     out_interp=np.zeros_like(out_ts)
     num_data=np.zeros_like(out_ts)
 
     for i in range(len(out_ts)-fit_window+1):
-        kinect_ts_vals=out_ts[i:i+fit_window]
-        sensor_start_arg=np.max(np.argwhere(in_ts<kinect_ts_vals[0]))
-        sensor_end_arg=np.min(np.argwhere(in_ts>kinect_ts_vals[-1]))
+        out_ts_vals=out_ts[i:i+fit_window]
+        sensor_start_arg=np.min(np.argwhere(in_ts>=out_ts_vals[0]))
+        sensor_end_arg=np.max(np.argwhere(in_ts<=out_ts_vals[-1]))
 
         fit_data_ts=in_ts[sensor_start_arg:sensor_end_arg+1]
         fit_data_depth=in_values[sensor_start_arg:sensor_end_arg+1]
         fit_data_ts=fit_data_ts-in_ts[sensor_start_arg]
-        kinect_ts_vals=kinect_ts_vals-in_ts[sensor_start_arg]
+        out_ts_vals=out_ts_vals-in_ts[sensor_start_arg]
         
         p=np.polyfit(fit_data_ts,fit_data_depth,deg=deg)
-        pred_depth=np.polyval(p,kinect_ts_vals)
+        pred_depth=np.polyval(p,out_ts_vals)
         out_interp[i:i+fit_window]+=pred_depth
         num_data[i:i+fit_window]+=1
 
@@ -114,4 +115,13 @@ def animate_pt_seq(data, interval=0.5):
         ax.scatter3D(data[i,0], data[i,1], data[i,2], color = "green")
         plt.pause(interval)
     plt.show()
+
+'''
+plot a list of points on an image
+'''
+def plot_points(image,points):
+    # Draw circles at the specified points
+    for point in points:
+        cv2.circle(image, point, 5, (0, 255, 0), -1) 
+    return image
 
