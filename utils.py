@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import shutil
 import numpy as np
+import matplotlib.pyplot as plt
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -95,3 +96,22 @@ def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
     where=np.argwhere(num_data>0)
     out_interp[where]/=num_data[where]
     return out_interp
+
+# animate_pt_seq(np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]]))
+def animate_pt_seq(data, interval=0.5):
+    # data=np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]])
+    fig=plt.figure(figsize = (10, 7))
+    ax = plt.axes(projection ="3d")
+
+    for i in range(len(data)):
+        plt.cla()
+        ax.set_xlim([np.min(data[:,0]), np.max(data[:,0])])
+        ax.set_ylim([np.min(data[:,1]), np.max(data[:,1])])
+        ax.set_zlim([np.min(data[:,2]), np.max(data[:,2])])
+        ax.set_xlabel('X', fontweight ='bold')
+        ax.set_ylabel('Y', fontweight ='bold')
+        ax.set_zlabel('Z', fontweight ='bold')
+        ax.scatter3D(data[i,0], data[i,1], data[i,2], color = "green")
+        plt.pause(interval)
+    plt.show()
+
