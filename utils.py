@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+from scipy.signal import find_peaks
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -124,4 +125,28 @@ def plot_points(image,points):
     for point in points:
         cv2.circle(image, point, 5, (0, 255, 0), -1) 
     return image
+
+def show_img(image):
+    # Check if the image was successfully loaded
+    if image is not None:
+        # Display the image
+        cv2.imshow('Image', image)
+
+        # Wait for a key press and then close the window
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    else:
+        print("Failed to load the image.")
+
+#crop an image given a bounding box and padding
+def crop_img_bb(img,hand_bb,pad):
+    img_crop=img[hand_bb[1]-pad:hand_bb[3]+pad,hand_bb[0]-pad:hand_bb[2]+pad]
+    return img_crop
+
+#find peaks and valleys in a 1D signal
+def find_peaks_and_valleys(signal, distance=10):
+    peaks, _ = find_peaks(signal, distance=distance)
+    valleys, _ = find_peaks(-signal, distance=distance)
+    return peaks, valleys
+
 
