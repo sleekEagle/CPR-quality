@@ -59,7 +59,6 @@ GT_depths=(GT_high_vals-GT_low_vals)
 
 
 depth_sorted_indices = np.argsort(depths)
-
 plt.plot((depths*2))
 plt.plot(GT_depths)
 plt.show()

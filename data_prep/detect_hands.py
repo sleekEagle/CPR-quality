@@ -11,6 +11,8 @@ import json
 def get_bb(results):
     bbx_list=results.xyxy
     conf_list=results.confidence
+    if len(conf_list)==0:
+        return []
     max_conf_arg=np.argmax(conf_list)
     bb=bbx_list[max_conf_arg]
     return bb
@@ -34,10 +36,13 @@ for subj_dir in subj_dirs:
             img_path=os.path.join(img_dir,img_file)
             results = base_model.predict(img_path)
             bb=get_bb(results)
-            assert len(bb)>0, f'No bounding box found for {img_file}'
-            bbstr= ','.join([str(int(item)) for item in list(bb)])
-            hand_bbs[img_file.split('.')[0]]=bbstr
-            # Write the JSON string to the output file
+            if len(bb)==0:
+                print(f'No bounding box found for {img_file}')
+                hand_bbs[img_file.split('.')[0]]=""
+            else:
+                bbstr= ','.join([str(int(item)) for item in list(bb)])
+                hand_bbs[img_file.split('.')[0]]=bbstr
+        # Write the JSON string to the output file
         with open(hand_bbs_path, 'w') as file:
             file.write(json.dumps(hand_bbs))
 
