@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
 import utils
 import json
 import cv2
