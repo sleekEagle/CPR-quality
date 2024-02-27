@@ -48,6 +48,7 @@ def main():
             img_files=utils.list_files(img_dir,'jpg')
             for i,img_file in enumerate(img_files):
                 print(f'Processing {i}/{len(img_files)}')
+                logging.info(f'Processing {i}/{len(img_files)}')
                 img_path=os.path.join(img_dir,img_file)
                 results = base_model.predict(img_path)
                 bb=get_bb(results)
