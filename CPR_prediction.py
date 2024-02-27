@@ -57,21 +57,29 @@ GT_high_vals=kinect_inter_depth_array[peaks]
 GT_low_vals=kinect_inter_depth_array[valleys]
 GT_depths=(GT_high_vals-GT_low_vals)
 
+plt.plot(GT_depths)
+plt.plot((depths))
+plt.show()
+
 
 depth_sorted_indices = np.argsort(depths)
 plt.plot((depths*2))
 plt.plot(GT_depths)
 plt.show()
 
-np.mean(np.abs((depths*2)-GT_depths))
-
-
+np.sqrt(np.mean((depths-GT_depths)**2))
 
 
 plt.plot(pred)
 plt.plot(peaks, pred[peaks], "x")
 plt.plot(valleys, pred[valleys], "o")
 plt.show()
+
+
+plt.plot(kinect_inter_depth_list)
+plt.show()
+
+
 
 
 
