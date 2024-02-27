@@ -16,8 +16,12 @@ import sys
 def main():
     # model_path e.g: C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth
     # data_path e.g : D:\CPR_data_raw
-    model_path = sys.argv[1]
-    data_path = sys.argv[2]
+    if len(sys.argv)==1:
+        model_path=r'C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth'
+        data_path=r'D:\CPR_extracted'
+    else:
+        model_path = sys.argv[1]
+        data_path = sys.argv[2]
 
     DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     MODEL_TYPE = "vit_h"
@@ -28,7 +32,7 @@ def main():
     mask_predictor = SamPredictor(sam)
 
     root_dir=data_path
-    subj_dirs=[os.path.join(root_dir,item,'extracted') for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
+    subj_dirs=[os.path.join(root_dir,item) for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
     for subj_dir in subj_dirs:
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         for session_dir in session_dirs:
@@ -67,17 +71,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    import sys
-
-    def main():
-        # Access command line arguments
-        arg1 = sys.argv[1]  # First argument
-        arg2 = sys.argv[2]  # Second argument
-        # Rest of your code...
-
-    if __name__ == "__main__":
-        main()
 
         
 
