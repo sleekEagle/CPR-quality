@@ -8,6 +8,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import utils
 import json
 import time
+import logging
+
+# Set up logging configuration
+logging.basicConfig(filename='output.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('This is a log message')
+
 
 def get_bb(results):
     bbx_list=results.xyxy
@@ -31,6 +38,7 @@ def main():
         for session_dir in session_dirs:
             hand_bbs={}
             print(session_dir)
+            logging.info(f"Processing session directory: {session_dir}")
             hand_bbs_path=os.path.join(session_dir,'hand_bbs.json')
             if os.path.exists(hand_bbs_path):
                 print(f'{hand_bbs_path} exists, skipping')
