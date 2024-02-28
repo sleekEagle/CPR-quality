@@ -17,7 +17,7 @@ import logging
 # Set up logging configuration
 logging.basicConfig(filename='output.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
-logging.info('This is a log message')
+logging.info('This is hand segmentation code')
 
 def main():
     # model_path e.g: C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth
