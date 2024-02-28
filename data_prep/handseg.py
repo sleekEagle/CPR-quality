@@ -43,6 +43,8 @@ def main():
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         for session_dir in session_dirs:
             print(session_dir)
+            if not (session_dir=='D:\\CPR_extracted\\P9\\s_0'):
+                continue
             logging.info(f'{session_dir}')
             hand_bb_path=os.path.join(session_dir,'hand_bbs.json')
             if not os.path.exists(hand_bb_path):
@@ -55,13 +57,18 @@ def main():
             os.makedirs(hand_mask_dir,exist_ok=True)
 
             img_files=utils.list_files(os.path.join(session_dir,'color'),'jpg')
+            last_bbx=0
             for img_file in img_files:
+                print(img_file)
                 hand_mask_img_path=os.path.join(hand_mask_dir,os.path.splitext(img_file)[0]+'.png')
+                bbx_str=data[img_file.split('.')[0]]
+                if bbx_str=="":
+                    bbx=last_bbx
+                else:
+                    bbx=[int(item) for item in bbx_str.split(',')]
+                    last_bbx=bbx
                 if os.path.exists(hand_mask_img_path):
                     continue
-
-                bbx_str=data[img_file.split('.')[0]]
-                bbx=[int(item) for item in bbx_str.split(',')]
 
                 image_path = os.path.join(session_dir, 'color', img_file)
                 image = cv2.imread(image_path)
