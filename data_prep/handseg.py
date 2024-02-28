@@ -13,6 +13,11 @@ import numpy as np
 from functools import reduce
 from scipy.ndimage.morphology import binary_fill_holes
 import sys
+import logging
+# Set up logging configuration
+logging.basicConfig(filename='output.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('This is a log message')
 
 def main():
     # model_path e.g: C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth
@@ -38,9 +43,11 @@ def main():
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         for session_dir in session_dirs:
             print(session_dir)
+            logging.info(f'{session_dir}')
             hand_bb_path=os.path.join(session_dir,'hand_bbs.json')
             if not os.path.exists(hand_bb_path):
                 print(f'{hand_bb_path} does not exist')
+                logging.info(f'{hand_bb_path} does not exist')
                 continue
             with open(hand_bb_path, 'r') as file:
                 data = json.load(file)
