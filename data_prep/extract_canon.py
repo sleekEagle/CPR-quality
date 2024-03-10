@@ -7,9 +7,9 @@ from datetime import datetime
 import re
 import logging
 # Set up logging configuration
-logging.basicConfig(filename='output.log', level=logging.INFO)
+logging.basicConfig(filename='ext_canon.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
-logging.info('This is hand segmentation code')
+logging.info('This is extract canon code')
 
 def extract_time_str(txt):
     x = re.findall("[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]", txt)
