@@ -74,6 +74,7 @@ def copy_mask_files():
     for s in sub_dirs:
         session_dirs=utils.get_dirs_with_str(os.path.join(sounrce_path,s), 's')
         for session in session_dirs:
+            print('processing: ', session)
             mask_dir=os.path.join(session, 'hand_mask')
             if os.path.isdir(mask_dir):
                 dest_path = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
