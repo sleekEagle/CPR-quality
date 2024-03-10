@@ -85,6 +85,7 @@ def copy_mask_files():
             if os.path.isdir(mask_dir):
                 dest_dir = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
                 if os.path.exists(dest_path):
+                    shutil.rmtree(dest_path)
                     print('copping to ', dest_dir)
                     shutil.copytree(mask_dir, dest_dir)
 
