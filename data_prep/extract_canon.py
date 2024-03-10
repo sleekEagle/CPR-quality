@@ -83,9 +83,9 @@ def copy_mask_files():
             logging.info(f'{session}')
             mask_dir=os.path.join(session, 'hand_mask')
             if os.path.isdir(mask_dir):
-                dest_path = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
+                dest_dir = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
                 if not os.path.exists(dest_path):
-                    shutil.copytree(mask_dir, dest_path)
+                    shutil.copytree(mask_dir, dest_dir)
 
 def get_ffmpeg_cmds():
     path='D:\\CPR_data_raw\\'
@@ -103,11 +103,11 @@ def get_ffmpeg_cmds():
                     if not os.path.exists(out_dir):
                         os.makedirs(out_dir)
                     file_name = os.path.basename(vid)
-                    cmd=f'ffmpeg -i {vid} -vf fps=30 {out_dir}\%%04d.png'
+                    cmd=f'ffmpeg -i {vid} -vf fps=30 {out_dir}\%%04d.jpg'
                     print(cmd)
 
 if __name__ == "__main__":
-    copy_mask_files()
+    get_ffmpeg_cmds()
 
 
 
