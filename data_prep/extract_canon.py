@@ -5,6 +5,11 @@ import utils
 import shutil
 from datetime import datetime
 import re
+import logging
+# Set up logging configuration
+logging.basicConfig(filename='output.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('This is hand segmentation code')
 
 def extract_time_str(txt):
     x = re.findall("[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]", txt)
@@ -75,6 +80,7 @@ def copy_mask_files():
         session_dirs=utils.get_dirs_with_str(os.path.join(sounrce_path,s), 's')
         for session in session_dirs:
             print('processing: ', session)
+            logging.info(f'{session}')
             mask_dir=os.path.join(session, 'hand_mask')
             if os.path.isdir(mask_dir):
                 dest_path = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
