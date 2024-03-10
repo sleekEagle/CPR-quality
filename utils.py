@@ -2,9 +2,6 @@ from datetime import datetime
 import os
 import shutil
 import numpy as np
-import matplotlib.pyplot as plt
-import cv2
-from scipy.signal import find_peaks
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -13,11 +10,15 @@ def get_float_time(time_object):
     + time_object.microsecond*1e-6)
     return time_float
 
+def get_ts_list(lines):
+    ts_lines=[get_float_time(datetime.strptime(line.strip(), "%H_%M_%S.%f").time()) for line in lines]
+    return ts_lines
+
 def get_kinect_ts_list(kin_ts_path):
     with open(kin_ts_path, 'r') as file:
         # Read all lines from the file into a list
         lines = file.readlines()
-        kinect_ts_lines=[get_float_time(datetime.strptime(line.strip(), "%H_%M_%S.%f").time()) for line in lines]
+        kinect_ts_lines = get_ts_list(lines)
     return kinect_ts_lines
 
 def list_subdirectories(directory):
@@ -84,14 +85,16 @@ def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
         out_ts_vals=out_ts[i:i+fit_window]
         sensor_start_arg=np.min(np.argwhere(in_ts>=out_ts_vals[0]))
         sensor_end_arg=np.max(np.argwhere(in_ts<=out_ts_vals[-1]))
-
-        fit_data_ts=in_ts[sensor_start_arg:sensor_end_arg+1]
-        fit_data_depth=in_values[sensor_start_arg:sensor_end_arg+1]
-        fit_data_ts=fit_data_ts-in_ts[sensor_start_arg]
-        out_ts_vals=out_ts_vals-in_ts[sensor_start_arg]
-        
-        p=np.polyfit(fit_data_ts,fit_data_depth,deg=deg)
-        pred_depth=np.polyval(p,out_ts_vals)
+        if sensor_start_arg>=sensor_end_arg:
+            pred_depth=in_values[sensor_start_arg]*np.ones((fit_window,1))
+        else:
+            fit_data_ts=in_ts[sensor_start_arg:sensor_end_arg+1]
+            fit_data_depth=in_values[sensor_start_arg:sensor_end_arg+1]
+            fit_data_ts=fit_data_ts-in_ts[sensor_start_arg]
+            out_ts_vals=out_ts_vals-in_ts[sensor_start_arg]
+            
+            p=np.polyfit(fit_data_ts,fit_data_depth,deg=deg)
+            pred_depth=np.polyval(p,out_ts_vals)
         out_interp[i:i+fit_window]+=pred_depth
         num_data[i:i+fit_window]+=1
 
@@ -101,6 +104,7 @@ def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
 
 # animate_pt_seq(np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]]))
 def animate_pt_seq(data, interval=0.5):
+    import matplotlib.pyplot as plt
     # data=np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]])
     fig=plt.figure(figsize = (10, 7))
     ax = plt.axes(projection ="3d")
@@ -121,12 +125,14 @@ def animate_pt_seq(data, interval=0.5):
 plot a list of points on an image
 '''
 def plot_points(image,points):
+    import cv2
     # Draw circles at the specified points
     for point in points:
         cv2.circle(image, point, 5, (0, 255, 0), -1) 
     return image
 
 def show_img(image):
+    import cv2
     # Check if the image was successfully loaded
     if image is not None:
         # Display the image
@@ -145,8 +151,20 @@ def crop_img_bb(img,hand_bb,pad):
 
 #find peaks and valleys in a 1D signal
 def find_peaks_and_valleys(signal, distance=10):
+    from scipy.signal import find_peaks
     peaks, _ = find_peaks(signal, distance=distance)
     valleys, _ = find_peaks(-signal, distance=distance)
     return peaks, valleys
+
+
+#************************************************************
+#*********get direcoties and files**************************
+#************************************************************
+def get_dirs_with_str(path,str,i=0,j=0):
+    directories = [os.path.join(path,name) for name in os.listdir(path) if (os.path.isdir(os.path.join(path, name)) and (str in name[i:len(name)-j]))]
+    return directories
+def get_files_with_str(path,str,i=0,j=0):
+    files = [os.path.join(path,file) for file in os.listdir(path) if str in file[i:len(file)-j]]
+    return files
 
 
