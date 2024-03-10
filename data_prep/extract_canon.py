@@ -85,6 +85,7 @@ def copy_mask_files():
             if os.path.isdir(mask_dir):
                 dest_dir = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
                 if not os.path.exists(dest_path):
+                    print('copping to ', dest_dir)
                     shutil.copytree(mask_dir, dest_dir)
 
 def get_ffmpeg_cmds():
