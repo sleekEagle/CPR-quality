@@ -84,10 +84,10 @@ def copy_mask_files():
             mask_dir=os.path.join(session, 'hand_mask')
             if os.path.isdir(mask_dir):
                 dest_dir = os.path.join(dest_path, os.path.basename(s),os.path.basename(session), 'hand_mask')
-                if os.path.exists(dest_path):
+                if os.path.exists(dest_dir):
                     shutil.rmtree(dest_path)
-                    print('copping to ', dest_dir)
-                    shutil.copytree(mask_dir, dest_dir)
+                print('copping to ', dest_dir)
+                shutil.copytree(mask_dir, dest_dir)
 
 def get_ffmpeg_cmds():
     path='D:\\CPR_data_raw\\'
