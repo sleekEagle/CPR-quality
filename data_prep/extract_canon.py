@@ -107,7 +107,7 @@ def get_ffmpeg_cmds():
                     print(cmd)
 
 if __name__ == "__main__":
-    get_ffmpeg_cmds()
+    copy_mask_files()
 
 
 
