@@ -39,12 +39,12 @@ def main():
             hand_bbs={}
             print(session_dir)
             logging.info(f"Processing session directory: {session_dir}")
-            hand_bbs_path=os.path.join(session_dir,'hand_bbs.json')
+            hand_bbs_path=os.path.join(session_dir,'kinect','hand_bbs.json')
             if os.path.exists(hand_bbs_path):
                 print(f'{hand_bbs_path} exists, skipping')
                 sleep=False
                 continue
-            img_dir=os.path.join(session_dir,'color')
+            img_dir=os.path.join(session_dir,'kinect','color')
             img_files=utils.list_files(img_dir,'jpg')
             for i,img_file in enumerate(img_files):
                 print(f'Processing {i}/{len(img_files)}')

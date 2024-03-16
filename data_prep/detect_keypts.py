@@ -137,44 +137,39 @@ def detect_kypts_mp():
                         # Delete the destination file if it exists
                 os.remove(destination_file)
                    
-            try:
-                with open(destination_file,'w') as file:
-                    output={}
-                    last_bb=0
-                    for img_file in img_files:
-                        img_path=os.path.join(img_dir,img_file)
-                        img=cv2.imread(img_path)
-                        if hand_bbs[img_file.split('.')[0]]=='':
-                            hand_bb=last_bb
-                        else:
-                            hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
-                        last_bb=hand_bb
-                        pad=80
-                        img_crop= utils.crop_img_bb(img,hand_bb,pad)
+            with open(destination_file,'w') as file:
+                output={}
+                last_bb=0
+                for img_file in img_files:
+                    img_path=os.path.join(img_dir,img_file)
+                    img=cv2.imread(img_path)
+                    if hand_bbs[img_file.split('.')[0]]=='':
+                        hand_bb=last_bb
+                    else:
+                        hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
+                    last_bb=hand_bb
+                    pad=80
+                    img_crop= utils.crop_img_bb(img,hand_bb,pad)
 
-                        image,xy_vals=wrst.get_kypts(img_crop)
-                        # if len(xy_vals)==0:
-                        #     output[img_file.split('.')[0]]={}
-                        #     continue
-                        # assert len(xy_vals)==21, f'Number of key points is not 21 for {img_file}'
-                        
-                        x_vals=[val[0]+hand_bb[0]-pad for val in xy_vals]
-                        y_vals=[val[1]+hand_bb[1]-pad for val in xy_vals]
-                        # points=[]
-                        # for i in range(len(x_vals)):
-                        #     if x_vals[i]==0:
-                        #         print('zero detected')
-                        #     points.append((x_vals[i],y_vals[i]))
-                        # utils.plot_points(img,points)
-                        # utils.show_img(img)
+                    image,xy_vals=wrst.get_kypts(img_crop)
+                    # if len(xy_vals)==0:
+                    #     output[img_file.split('.')[0]]={}
+                    #     continue
+                    # assert len(xy_vals)==21, f'Number of key points is not 21 for {img_file}'
+                    
+                    x_vals=[val[0]+hand_bb[0]-pad for val in xy_vals]
+                    y_vals=[val[1]+hand_bb[1]-pad for val in xy_vals]
+                    # points=[]
+                    # for i in range(len(x_vals)):
+                    #     if x_vals[i]==0:
+                    #         print('zero detected')
+                    #     points.append((x_vals[i],y_vals[i]))
+                    # utils.plot_points(img,points)
+                    # utils.show_img(img)
 
-                        sub_dict={"x":x_vals,"y":y_vals}
-                        output[img_file.split('.')[0]]=sub_dict
-                    json.dump(output, file)
-            except Exception as e:
-                print(e)
-                print(f'Error in {session_dir}')
-                continue
+                    sub_dict={"x":x_vals,"y":y_vals}
+                    output[img_file.split('.')[0]]=sub_dict
+                json.dump(output, file)
 
 
 

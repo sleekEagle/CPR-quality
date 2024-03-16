@@ -21,6 +21,43 @@ def get_kinect_ts_list(kin_ts_path):
         kinect_ts_lines = get_ts_list(lines)
     return kinect_ts_lines
 
+
+'''
+file operations
+'''
+
+def get_dirs_with_str(path,str,i=0,j=0):
+    directories = [os.path.join(path,name) for name in os.listdir(path) if (os.path.isdir(os.path.join(path, name)) and (str in name[i:len(name)-j]))]
+    return directories
+def get_files_with_str(path,str,i=0,j=0):
+    files = [os.path.join(path,file) for file in os.listdir(path) if str in file[i:len(file)-j]]
+    return files
+
+'''
+move source dir or file into the target dir
+if source is a file move the file into the target dir
+if source is a dir move the dir into a sub directory in target dir
+'''
+def move_into_dir(source,target_dir,copy=True):
+    if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
+
+    if not os.path.exists(source):
+        raise Exception(f"{source} does not exist")
+    
+    if os.path.isfile(source):
+        shutil.move(source, target_dir)
+        return 0
+    dirname=os.path.basename(source)
+    target_sub_dir=os.path.join(target_dir, dirname)
+    if os.path.exists(target_sub_dir):
+        shutil.rmtree(target_sub_dir)
+    if copy:
+        shutil.copytree(source, target_sub_dir)
+    else:
+        shutil.move(source, target_sub_dir)
+    return 0
+
 def list_subdirectories(directory):
     subdirectories = [d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))]
     return subdirectories
@@ -146,7 +183,8 @@ def show_img(image):
 
 #crop an image given a bounding box and padding
 def crop_img_bb(img,hand_bb,pad):
-    img_crop=img[hand_bb[1]-pad:hand_bb[3]+pad,hand_bb[0]-pad:hand_bb[2]+pad]
+    h,w,_=img.shape
+    img_crop=img[max(0,hand_bb[1]-pad):min(h,hand_bb[3]+pad),max(0,hand_bb[0]-pad):min(w,hand_bb[2]+pad)]
     return img_crop
 
 #find peaks and valleys in a 1D signal
@@ -160,11 +198,6 @@ def find_peaks_and_valleys(signal, distance=10):
 #************************************************************
 #*********get direcoties and files**************************
 #************************************************************
-def get_dirs_with_str(path,str,i=0,j=0):
-    directories = [os.path.join(path,name) for name in os.listdir(path) if (os.path.isdir(os.path.join(path, name)) and (str in name[i:len(name)-j]))]
-    return directories
-def get_files_with_str(path,str,i=0,j=0):
-    files = [os.path.join(path,file) for file in os.listdir(path) if str in file[i:len(file)-j]]
-    return files
+
 
 
