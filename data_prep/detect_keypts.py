@@ -8,6 +8,7 @@ import os
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import json
+import os
 
 def show_img(image):
     # Check if the image was successfully loaded
@@ -107,14 +108,13 @@ def detect_object(path,obejct_name='person'):
 
 def detect_kypts_mp():
     wrst=WristDet_mediapipe()
-    root_dir='D:\CPR_data_raw'
-    subj_dirs=[os.path.join(root_dir,item,'extracted') for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
+    root_dir='D:\CPR_extracted'
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
-        session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
             print(session_dir)
-            
-            handbb_path=os.path.join(session_dir,'hand_bbs.json')
+            handbb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
             if os.path.exists(handbb_path):
                 with open(handbb_path, 'r') as file:
                     hand_bbs = json.load(file)
@@ -122,42 +122,59 @@ def detect_kypts_mp():
                 print(f'{handbb_path} does not exist')
                 continue
 
-            img_dir=os.path.join(session_dir,'color')
+            img_dir=os.path.join(session_dir,'kinect','color')
             img_files=utils.list_files(img_dir,'jpg')
-            destination_directory=os.path.join(session_dir,'wrist_keypts')
+            destination_directory=os.path.join(session_dir,'kinect','wrist_keypts')
             if not os.path.exists(destination_directory):
                 os.makedirs(destination_directory)
             destination_file=os.path.join(destination_directory,'hand_keypts_mediapipe.json')
-            # if os.path.exists(destination_file):
-            #     continue
-            with open(destination_file,'w') as file:
-                output={}
-                for img_file in img_files:
-                    img_path=os.path.join(img_dir,img_file)
-                    img=cv2.imread(img_path)
-                    hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
-                    pad=80
-                    img_crop= utils.crop_img_bb(img,hand_bb,pad)
+            if os.path.exists(destination_file):
+                with open(destination_file, 'r') as file:
+                    lines = file.readlines()
+                    if len(lines)>0:
+                        print(f'{destination_file} is not empty. Continuing...')
+                        continue
+                        # Delete the destination file if it exists
+                os.remove(destination_file)
+                   
+            try:
+                with open(destination_file,'w') as file:
+                    output={}
+                    last_bb=0
+                    for img_file in img_files:
+                        img_path=os.path.join(img_dir,img_file)
+                        img=cv2.imread(img_path)
+                        if hand_bbs[img_file.split('.')[0]]=='':
+                            hand_bb=last_bb
+                        else:
+                            hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
+                        last_bb=hand_bb
+                        pad=80
+                        img_crop= utils.crop_img_bb(img,hand_bb,pad)
 
-                    image,xy_vals=wrst.get_kypts(img_crop)
-                    # if len(xy_vals)==0:
-                    #     output[img_file.split('.')[0]]={}
-                    #     continue
-                    assert len(xy_vals)==21, f'Number of key points is not 21 for {img_file}'
-                    
-                    x_vals=[val[0]+hand_bb[0]-pad for val in xy_vals]
-                    y_vals=[val[1]+hand_bb[1]-pad for val in xy_vals]
-                    # points=[]
-                    # for i in range(len(x_vals)):
-                    #     if x_vals[i]==0:
-                    #         print('zero detected')
-                    #     points.append((x_vals[i],y_vals[i]))
-                    # utils.plot_points(img,points)
-                    # utils.show_img(img)
+                        image,xy_vals=wrst.get_kypts(img_crop)
+                        # if len(xy_vals)==0:
+                        #     output[img_file.split('.')[0]]={}
+                        #     continue
+                        # assert len(xy_vals)==21, f'Number of key points is not 21 for {img_file}'
+                        
+                        x_vals=[val[0]+hand_bb[0]-pad for val in xy_vals]
+                        y_vals=[val[1]+hand_bb[1]-pad for val in xy_vals]
+                        # points=[]
+                        # for i in range(len(x_vals)):
+                        #     if x_vals[i]==0:
+                        #         print('zero detected')
+                        #     points.append((x_vals[i],y_vals[i]))
+                        # utils.plot_points(img,points)
+                        # utils.show_img(img)
 
-                    sub_dict={"x":x_vals,"y":y_vals}
-                    output[img_file.split('.')[0]]=sub_dict
-                json.dump(output, file)
+                        sub_dict={"x":x_vals,"y":y_vals}
+                        output[img_file.split('.')[0]]=sub_dict
+                    json.dump(output, file)
+            except Exception as e:
+                print(e)
+                print(f'Error in {session_dir}')
+                continue
 
 
 

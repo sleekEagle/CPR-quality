@@ -91,6 +91,7 @@ def copy_mask_files():
 
 def get_ffmpeg_cmds():
     path='D:\\CPR_data_raw\\'
+    out_path='D:\\canon_images\\'
     sub_dirs=utils.get_dirs_with_str(path, 'P')
     for s in sub_dirs:
         session_dirs=utils.get_dirs_with_str(os.path.join(path,s), 's')
@@ -98,8 +99,8 @@ def get_ffmpeg_cmds():
             canon_dir=os.path.join(session, 'canon')
             if os.path.isdir(canon_dir):
                 vid_files=utils.get_files_with_str(canon_dir, 'MOV')
-                for vid in vid_files:                    
-                    out_dir=os.path.join(canon_dir, vid.split('.')[0])
+                for vid in vid_files: 
+                    out_dir=os.path.join(out_path,os.path.basename(s),os.path.basename(session), os.path.basename(vid.split('.')[0]))
                     if os.path.exists(out_dir):
                         shutil.rmtree(out_dir)
                     if not os.path.exists(out_dir):
@@ -108,8 +109,98 @@ def get_ffmpeg_cmds():
                     cmd=f'ffmpeg -i {vid} -vf fps=30 {out_dir}\%%04d.jpg'
                     print(cmd)
 
+def rearrange_main_dir():
+    ext_dir='D:\\CPR_extracted'
+    sub_dirs=utils.get_dirs_with_str(ext_dir, 'P')
+    for sd in sub_dirs:
+        session_dirs=utils.get_dirs_with_str(sd, 's')
+        base=os.path.basename(sd)
+        if base=='P5':
+            print('p5')
+        for sess_dir in session_dirs:
+            kinect_dir=os.path.join(sess_dir, 'kinect')
+            color_dir=os.path.join(sess_dir, 'color')
+            depth_dir=os.path.join(sess_dir, 'depth')
+            try:
+                utils.move_into_dir(color_dir, kinect_dir)
+                utils.move_into_dir(depth_dir, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+            try:
+                file=os.path.join(sess_dir, 'hand_bbs.json')
+                utils.move_into_dir(file, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+            try:
+                file=os.path.join(sess_dir, 'hand_keypts_XYZ.json')
+                utils.move_into_dir(file, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+            try:
+                file=os.path.join(sess_dir, 'kinect_depth_interp.txt')
+                utils.move_into_dir(file, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+            try:
+                file=os.path.join(sess_dir, 'kinect_ts.txt')
+                utils.move_into_dir(file, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+            try:
+                file=os.path.join(sess_dir, 'mean_person_bbx.txt')
+                utils.move_into_dir(file, kinect_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{sess_dir}: {e}')
+
+def move_masks_into_data_dir():
+    mask_dir = r"\\samba.cs.virginia.edu\p\blurdepth\data\hand_masks"
+    data_path='D:\\CPR_extracted'
+    subj_dirs=utils.get_dirs_with_str(mask_dir, 'P')
+    for s in subj_dirs:
+        s_base=os.path.basename(s)
+        session_dirs=utils.get_dirs_with_str(s,'s')
+        for session in session_dirs:
+            print('processing: ', session)
+            sess_base=os.path.basename(session)
+            mask_dir=os.path.join(session, 'hand_mask')
+            target_dir=os.path.join(data_path,s_base,sess_base,'kinect')
+            subdir=os.path.join(target_dir, 'hand_mask')
+            color_dir=os.path.join(target_dir, 'color')
+            if os.path.exists(subdir):
+                file_list = os.listdir(subdir)
+                color_dir_list=os.listdir(color_dir)
+                if len(file_list)==len(color_dir_list):
+                    print('its already threre. Continuing...')
+                    continue
+            try:
+                utils.move_into_dir(mask_dir, target_dir)
+            except Exception as e:
+                print(e)
+                logging.error(f'{session}: {e}')
+
+
 if __name__ == "__main__":
-    copy_mask_files()
+    move_masks_into_data_dir()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
