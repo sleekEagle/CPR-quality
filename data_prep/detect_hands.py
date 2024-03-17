@@ -27,7 +27,7 @@ def get_bb(results):
 
 def main():
     if len(sys.argv)==1:
-        root_dir='D:\\CPR_extracted'
+        root_dir=r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images'
     else:
         root_dir = sys.argv[1]
     base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))

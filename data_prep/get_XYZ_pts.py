@@ -29,59 +29,76 @@ def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
     else:
         #get the closest valid depth value
         valid_sensor_depth=depth_img>0
-        hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-        valid_depth_mask=(valid_sensor_depth) & (hand_mask>0)
-        valid_args=np.argwhere(valid_depth_mask>0)
-        closest_arg=np.argmin(np.sum(np.abs(valid_args-np.array([y,x])),axis=1))
-        closest_xy=valid_args[closest_arg,:]
-        wrist_depth=depth_img[closest_xy[0],closest_xy[1]]
-    assert (wrist_depth>0 and wrist_depth<2000.0),"depth outside of valid range"
+        if not os.path.exists(hand_mask_file):
+            wrist_depth=-1
+        else:
+            hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            valid_depth_mask=(valid_sensor_depth) & (hand_mask>0)
+            valid_args=np.argwhere(valid_depth_mask>0)
+            closest_arg=np.argmin(np.sum(np.abs(valid_args-np.array([y,x])),axis=1))
+            closest_xy=valid_args[closest_arg,:]
+            wrist_depth=depth_img[closest_xy[0],closest_xy[1]]
+    if not (wrist_depth>0 and wrist_depth<2000.0):
+        print(f'Invalid depth value: {wrist_depth}')
+        return -1
     X,Y,Z=get_XYZ(x,y,wrist_depth,k)
     return X,Y,Z
 
-root_dir='D:\CPR_data_raw'
-subj_dirs=[os.path.join(root_dir,item,'extracted') for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
-for subj_dir in subj_dirs:
-    session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
-    for session_dir in session_dirs:
-        XYZ_pt_file=os.path.join(session_dir,'hand_keypts_XYZ.json')
-        if os.path.exists(XYZ_pt_file):
-            print(XYZ_pt_file+' exists. Continuing')
-            continue
-        print(session_dir)
-        img_dir=os.path.join(session_dir,'color')
-        depth_dir=os.path.join(session_dir,'depth')
-        ts_file=os.path.join(session_dir,'kinect_ts.txt')
-        with open(ts_file, 'r') as file:
-            # Read all lines into a list
-            ts_lines = file.readlines()
-        ts_list=np.array([float(line.strip()) for line in ts_lines])
-        #read keypoint data
-        with open(os.path.join(session_dir,'wrist_keypts','hand_keypts_mediapipe.json'), 'r') as json_file:
-            kypt_dict = json.load(json_file)
-        #read hand seg data
-        hand_mask_dir=os.path.join(session_dir,'hand_mask')
-        img_list=os.listdir(img_dir)
-        img_list.sort()
-        kypt_XYZ_dict={}
-        
-        for i,img in enumerate(img_list):
-            print(f'Processing {i}/{len(img_list)}')
-            if img.endswith('.jpg'):
-                img_key=img.split('.')[0]
-                depth_file=os.path.join(depth_dir,img_key+'.png')
-                depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-                hand_mask_file=os.path.join(hand_mask_dir,img_key+'.png')
-                kypts=kypt_dict[img_key]
-                assert len(kypts)>0, "no keypoints detected. Exiting"
-                kypt={}
-                for i in range(len(kypts['x'])):
-                    x,y=kypts['x'][i],kypts['y'][i]
-                    X,Y,Z=get_kypt_XYZ(x,y,depth_file,hand_mask_file)
-                    kypt[i]=(str(X),str(Y),str(Z))
-                kypt_XYZ_dict[img_key]=kypt
-        with open(XYZ_pt_file, 'w') as f:
-            json.dump(kypt_XYZ_dict, f)
+
+def extract_3Dpts():
+    root_dir='D:\\CPR_extracted'
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            XYZ_pt_file=os.path.join(session_dir,'kinect','wrist_keypts','hand_keypts_mediapipe_XYZ.json')
+            if os.path.exists(XYZ_pt_file):
+                print(XYZ_pt_file+' exists. Continuing')
+                continue
+            print(session_dir)
+            img_dir=os.path.join(session_dir,'kinect','color')
+            depth_dir=os.path.join(session_dir,'kinect','depth')
+            ts_file=os.path.join(session_dir,'kinect','kinect_ts.txt')
+            with open(ts_file, 'r') as file:
+                # Read all lines into a list
+                ts_lines = file.readlines()
+            ts_list=np.array([float(line.strip()) for line in ts_lines])
+            #read keypoint data
+            with open(os.path.join(session_dir,'kinect','wrist_keypts','hand_keypts_mediapipe.json'), 'r') as json_file:
+                kypt_dict = json.load(json_file)
+            #read hand seg data
+            hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
+            img_list=os.listdir(img_dir)
+            img_list.sort()
+            kypt_XYZ_dict={}
+            
+            for i,img in enumerate(img_list):
+                print(f'Processing {i}/{len(img_list)}',end='\r')
+                if img.endswith('.jpg'):
+                    img_key=img.split('.')[0]
+                    depth_file=os.path.join(depth_dir,img_key+'.png')
+                    # depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                    hand_mask_file=os.path.join(hand_mask_dir,img_key+'.png')
+                    kypts=kypt_dict[img_key]
+                    if len(kypts)==0:
+                        print(f'No keypoints detected for {img_key}')
+                        kypt_XYZ_dict[img_key]=''
+                    else:
+                        kypt={}
+                        for i in range(len(kypts['x'])):
+                            x,y=kypts['x'][i],kypts['y'][i]
+                            pts=get_kypt_XYZ(x,y,depth_file,hand_mask_file)
+                            if pts==-1:
+                                kypt[i]=''
+                            else:
+                                X,Y,Z=pts
+                                kypt[i]=(str(X),str(Y),str(Z))
+                        kypt_XYZ_dict[img_key]=kypt
+            with open(XYZ_pt_file, 'w') as f:
+                json.dump(kypt_XYZ_dict, f)
+    
+if __name__ == "__main__":
+    extract_3Dpts()
         
 
 
