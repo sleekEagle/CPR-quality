@@ -152,7 +152,8 @@ def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
 def interpolate_between_ts_cube(signal,in_ts,out_ts,plot=False):
     from scipy.interpolate import CubicSpline
     start_ts,end_ts=in_ts[0],in_ts[-1]
-    out_ts=out_ts[(out_ts>=start_ts)&(out_ts<=end_ts)]
+    valid_out_ts= (out_ts>=start_ts)&(out_ts<=end_ts)
+    out_ts=out_ts[valid_out_ts]
     in_ts_norm=in_ts-start_ts
     out_ts_norm=out_ts-start_ts
     spl=CubicSpline(in_ts_norm,signal)
@@ -162,7 +163,7 @@ def interpolate_between_ts_cube(signal,in_ts,out_ts,plot=False):
         plt.plot(in_ts,signal)
         plt.plot(out_ts,pred)
         plt.show()
-    return out_ts,pred
+    return out_ts,valid_out_ts,pred
 
 # animate_pt_seq(np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]]))
 def animate_pt_seq(data, interval=0.5):
