@@ -132,12 +132,37 @@ def interpolate_between_ts(in_values,in_ts,out_ts,fit_window=8,deg=4):
             
             p=np.polyfit(fit_data_ts,fit_data_depth,deg=deg)
             pred_depth=np.polyval(p,out_ts_vals)
-        out_interp[i:i+fit_window]+=pred_depth
+
+            # plt.plot(fit_data_ts,fit_data_depth)
+            # plt.plot(out_ts_vals,pred_depth)
+        
+        out_interp[i:i+fit_window]+=np.squeeze(pred_depth)
         num_data[i:i+fit_window]+=1
 
     where=np.argwhere(num_data>0)
     out_interp[where]/=num_data[where]
+
+    # import matplotlib.pyplot as plt
+    # plt.plot(in_ts,in_values)
+    # plt.plot(out_ts,out_interp)
+    # plt.show()
+
     return out_interp
+
+def interpolate_between_ts_cube(signal,in_ts,out_ts,plot=False):
+    from scipy.interpolate import CubicSpline
+    start_ts,end_ts=in_ts[0],in_ts[-1]
+    out_ts=out_ts[(out_ts>=start_ts)&(out_ts<=end_ts)]
+    in_ts_norm=in_ts-start_ts
+    out_ts_norm=out_ts-start_ts
+    spl=CubicSpline(in_ts_norm,signal)
+    pred=spl(out_ts_norm)
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.plot(in_ts,signal)
+        plt.plot(out_ts,pred)
+        plt.show()
+    return out_ts,pred
 
 # animate_pt_seq(np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]]))
 def animate_pt_seq(data, interval=0.5):
