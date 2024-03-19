@@ -108,7 +108,7 @@ def detect_object(path,obejct_name='person'):
 
 def detect_kypts_mp():
     wrst=WristDet_mediapipe()
-    root_dir='D:\CPR_extracted'
+    root_dir=r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images'
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')

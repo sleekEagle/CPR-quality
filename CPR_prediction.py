@@ -8,7 +8,7 @@ import pyransac3d as pyrsc
 from scipy.interpolate import interp1d
 from scipy.interpolate import CubicSpline
 
-session_dir=r'D:\CPR_extracted\P19\s_4\kinect'
+session_dir=r'D:\CPR_extracted\P1\s_2\kinect'
 
 
 def project_point_to_plane(point, plane):
@@ -61,9 +61,9 @@ def read_XYZ(path):
 
     return output
 
-def getXYZpos(XYZ_array,dists_valid,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
+def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
     kinect_ts_list=np.array(kinect_ts_list)
-    valid_t=np.array(kinect_ts_list)[XYZ_idx_list][dists_valid]
+    valid_t=np.array(kinect_ts_list)[XYZ_idx_list]
     ts_x,valid_out_ts,x_pred=utils.interpolate_between_ts_cube(XYZ_array[:,0],valid_t,kinect_ts_list,plot=False)
     ts_y,valid_out_ts,y_pred=utils.interpolate_between_ts_cube(XYZ_array[:,1],valid_t,kinect_ts_list,plot=False)
     ts_z,valid_out_ts,z_pred=utils.interpolate_between_ts_cube(XYZ_array[:,2],valid_t,kinect_ts_list,plot=False)
@@ -143,20 +143,20 @@ kinect_ts_list=init_output['kinect_ts_list']
 XYZ_idx_list=init_output['XYZ_idx_list']
 
 #detect planes from data
-plane1 = pyrsc.Plane()
-best_eq, best_inliers = plane1.fit(XYZ_array+1e-6, 0.01)
-A, B, C, D=best_eq
-x=np.linspace(min(XYZ_array[:,0]),max(XYZ_array[:,0]),100)
-y=np.linspace(min(XYZ_array[:,1]),max(XYZ_array[:,1]),100)
-x, y = np.meshgrid(x, y)
-z = (-D - A * x - B * y) / C
+# plane1 = pyrsc.Plane()
+# best_eq, best_inliers = plane1.fit(XYZ_array, 0.01)
+# A, B, C, D=best_eq
+# x=np.linspace(min(XYZ_array[:,0]),max(XYZ_array[:,0]),100)
+# y=np.linspace(min(XYZ_array[:,1]),max(XYZ_array[:,1]),100)
+# x, y = np.meshgrid(x, y)
+# z = (-D - A * x - B * y) / C
 
 
 
-threshold=5
-dists=np.abs(dist_from_plane(A, B, C, D, XYZ_array))
-dists_valid=dists<threshold
-XYZ_valid=XYZ_array[dists_valid]
+# threshold=5
+# dists=np.abs(dist_from_plane(A, B, C, D, XYZ_array))
+# dists_valid=dists<threshold
+# XYZ_valid=XYZ_array[dists_valid]
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -164,21 +164,21 @@ ax.set_xlim(min(XYZ_array[:,0]), max(XYZ_array[:,0]))
 ax.set_ylim(min(XYZ_array[:,1]), max(XYZ_array[:,1]))
 ax.scatter(XYZ_array[:, 0], XYZ_array[:, 1], XYZ_array[:, 2])
 ax.scatter(XYZ_array[0, 0], XYZ_array[0, 1], XYZ_array[0, 2], s=100, c='red')
-ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
-ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
+# ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
+# ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
 ax.set_xlabel('X Axis')
 ax.set_ylabel('Y Axis')
 ax.set_zlabel('Z Axis')
 plt.title('movement of the wrist in 3D space and plane detection')
 plt.show()
 
-output=getXYZpos(XYZ_valid,dists_valid,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list)
+output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list)
 high_vals=output['high_vals']
 low_vals=output['low_vals']
 #project points onto the plane
-proj_points_high=np.array([project_point_to_plane(val, best_eq) for val in high_vals])
-proj_points_low=np.array([project_point_to_plane(val, best_eq) for val in low_vals])
-depths=np.sum((proj_points_high-proj_points_low)**2,axis=1)**0.5
+# proj_points_high=np.array([project_point_to_plane(val, best_eq) for val in high_vals])
+# proj_points_low=np.array([project_point_to_plane(val, best_eq) for val in low_vals])
+# depths=np.sum((high_vals-proj_points_low)**2,axis=1)**0.5
 
 # plt.plot(output['GT_depths'])
 # plt.plot(depths)
@@ -190,7 +190,7 @@ plt.plot(GT_depth)
 plt.plot(depth_est)
 plt.show()
 error=np.mean(np.abs(GT_depth-depth_est))
-print(error)
+print(f"The error is {error:.2f} mm")
 
 
 # fig = plt.figure()
