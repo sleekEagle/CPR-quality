@@ -1,12 +1,9 @@
-import cv2
-import mediapipe as mp
-import numpy as np
+# import cv2
+# import numpy as np
 import sys
 sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
 import utils
 import os
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
 import json
 import os
 
@@ -58,6 +55,10 @@ class WristDet_mediapipe:
         return image,xy_vals
     
 def detect_object(path,obejct_name='person'):
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
     base_options = python.BaseOptions(model_asset_path=r'C:\Users\lahir\Downloads\efficientdet_lite0.tflite')
     options = vision.ObjectDetectorOptions(base_options=base_options,
                                         score_threshold=0.5)
@@ -107,6 +108,10 @@ def detect_object(path,obejct_name='person'):
 
 
 def detect_kypts_mp():
+    import mediapipe as mp
+    from mediapipe.tasks import python
+    from mediapipe.tasks.python import vision
+
     wrst=WristDet_mediapipe()
     root_dir=r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images'
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
@@ -171,7 +176,81 @@ def detect_kypts_mp():
                     output[img_file.split('.')[0]]=sub_dict
                 json.dump(output, file)
 
+'''
+different models and their performance 
+https://github.com/open-mmlab/mmpose/tree/5a3be9451bdfdad2053a90dc1199e3ff1ea1a409/configs/hand_2d_keypoint
+selected topdown heatmap method from 
+https://github.com/open-mmlab/mmpose/tree/5a3be9451bdfdad2053a90dc1199e3ff1ea1a409/configs/hand_2d_keypoint/topdown_heatmap
 
+selected model: HRNETv2-w18+dark
+trained on: 
+    RHD2D : td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256
+    coco : td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256
+    onehand10k : td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256
+'''
+
+def detect_kypts_mmpose(model_name):
+    from mmdet.apis import init_detector, inference_detector,DetInferencer
+    from mmpose.apis import MMPoseInferencer
+    import numpy as np
+    from mmcv.image import imread
+    from PIL import Image
+    import cv2
+
+    root_dir=r'D:\CPR_extracted'
+    models={
+        'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
+        'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
+        'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
+    }
+    model_str=models[model_name]
+    print(f'Using model: {model_str}')
+
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            if not session_dir==r'D:\CPR_extracted\P1\s_2':
+                continue
+            print(session_dir)
+            handbb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
+            if os.path.exists(handbb_path):
+                with open(handbb_path, 'r') as file:
+                    hand_bbs = json.load(file)
+            else:
+                print(f'{handbb_path} does not exist')
+                continue
+            img_dir=os.path.join(session_dir,'kinect','color')
+            img_files=utils.list_files(img_dir,'jpg')
+            destination_directory=os.path.join(session_dir,'kinect','wrist_keypts')
+            destination_file=os.path.join(destination_directory,f'hand_keypts_mmpose_{model_name}.json')
+            if os.path.exists(destination_file):
+                os.remove(destination_file)
+            inferencer = MMPoseInferencer(model_str)
+            with open(destination_file,'w') as file:
+                output={}
+                img_list=[]
+                for img_file in img_files:
+                    img_path=os.path.join(img_dir,img_file)
+                    img=cv2.imread(img_path)
+                    if hand_bbs[img_file.split('.')[0]]=='':
+                        hand_bb=last_bb
+                    else:
+                        hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
+                    last_bb=hand_bb
+                    pad=80
+                    img_crop= utils.crop_img_bb(img,hand_bb,pad)
+                    img_list.append(img_crop)
+                result_generator = inferencer(img_list, show=False)
+                for i,result in enumerate(result_generator):
+                    print('progress:',i,'/',len(img_list),end='\r')
+                    # result = next(result_generator)
+                    kypts=result['predictions'][0][0]['keypoints']
+                    x_vals=[val[0]+hand_bb[0]-pad for val in kypts]
+                    y_vals=[val[1]+hand_bb[1]-pad for val in kypts]
+                    sub_dict={"x":x_vals,"y":y_vals}
+                    output[img_files[i].split('.')[0]]=sub_dict
+                json.dump(output, file)
 
 #object detection
 def get_personBB():
@@ -206,9 +285,29 @@ def get_personBB():
                 with open(out_file,'w') as file:
                     file.write("mean_x,mean_y,mean_width,mean_height \n")
                     file.write(f'{int(mean_x)},{int(mean_y)},{int(mean_width)},{int(mean_height)}')
+                    
 
-# get_personBB()
-detect_kypts_mp()
+if __name__ == "__main__":
+    detect_kypts_mmpose('coco')
+
+
+
+from mmdet.apis import init_detector, inference_detector,DetInferencer
+from mmpose.apis import MMPoseInferencer
+import numpy as np
+from mmcv.image import imread
+from PIL import Image
+import cv2
+
+models={
+    'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
+    'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
+    'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
+}
+model_str=models['RHD2D']
+inferencer = MMPoseInferencer(model_str)
+result_generator = inferencer(r'C:\Users\lahir\Downloads\c.jpg', show=True)
+result = next(result_generator)
 
 
 

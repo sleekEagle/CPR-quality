@@ -2,13 +2,10 @@ import os
 import json
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.io
-from sklearn.linear_model import RANSACRegressor
-import matplotlib.animation as animation
 import sys
 sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
 import utils
+import argparse
 
 k=np.array([[615.873673811006,0,640.803032851225],[0,615.918359977960,365.547839233105],[0,0,1]])
 
@@ -21,7 +18,7 @@ def get_XYZ(x,y,depth,k):
 def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
     depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
     lookup_window=10
-    depth_sel=depth_img[y-lookup_window:y+lookup_window,x-lookup_window:x+lookup_window]
+    depth_sel=depth_img[int(y-lookup_window):int(y+lookup_window),int(x-lookup_window):int(x+lookup_window)]
     condition=(depth_sel>100.0) & (depth_sel<2000.0)
     depth_sel=depth_sel[condition]
     if len(depth_sel)>0:
@@ -45,13 +42,15 @@ def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
     return X,Y,Z
 
 
-def extract_3Dpts():
+def extract_3Dpts(model_name):
     root_dir='D:\\CPR_extracted'
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            XYZ_pt_file=os.path.join(session_dir,'kinect','wrist_keypts','hand_keypts_mediapipe_XYZ.json')
+            if not session_dir==r'D:\CPR_extracted\P1\s_2':
+                continue
+            XYZ_pt_file=os.path.join(session_dir,'kinect','wrist_keypts',f'hand_keypts_{model_name}_XYZ.json')
             if os.path.exists(XYZ_pt_file):
                 print(XYZ_pt_file+' exists. Continuing')
                 continue
@@ -64,7 +63,7 @@ def extract_3Dpts():
                 ts_lines = file.readlines()
             ts_list=np.array([float(line.strip()) for line in ts_lines])
             #read keypoint data
-            with open(os.path.join(session_dir,'kinect','wrist_keypts','hand_keypts_mediapipe.json'), 'r') as json_file:
+            with open(os.path.join(session_dir,'kinect','wrist_keypts',f'hand_keypts_{model_name}.json'), 'r') as json_file:
                 kypt_dict = json.load(json_file)
             #read hand seg data
             hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
@@ -98,7 +97,10 @@ def extract_3Dpts():
                 json.dump(kypt_XYZ_dict, f)
     
 if __name__ == "__main__":
-    extract_3Dpts()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="test", help="name of the model. mediapipe, mmpose_RHD2D, mmpose_onehand10k, mmpose_coco")
+    args = parser.parse_args()
+    extract_3Dpts(args.model)
         
 
 
