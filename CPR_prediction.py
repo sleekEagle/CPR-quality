@@ -30,7 +30,7 @@ def dist_from_plane(A,B,C,D,XYZ_array):
 
 def read_XYZ(path):
     kinect_ts_path=os.path.join(path,'kinect_ts_interp.txt')
-    XYZ_dict_path=os.path.join(path,'wrist_keypts','hand_keypts_mediapipe_XYZ.json')
+    XYZ_dict_path=os.path.join(path,'wrist_keypts','hand_keypts_test_XYZ.json')
     kinect_depth_path=os.path.join(path,'kinect_depth_interp.txt')
 
     with open(XYZ_dict_path, 'r') as file:
@@ -95,11 +95,11 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
     valleys=valleys[:l]
 
 
-    # plt.plot(pred)
-    # plt.plot(peaks, pred[peaks], "x")
-    # plt.plot(valleys, pred[valleys], "o")
-    # plt.title('peaks and valleys')
-    # plt.show()
+    plt.plot(pred)
+    plt.plot(peaks, pred[peaks], "x")
+    plt.plot(valleys, pred[valleys], "o")
+    plt.title('peaks and valleys')
+    plt.show()
 
     # fit_window=50
     # deg=4
