@@ -50,17 +50,13 @@ class CPRnet(nn.Module):
                                                       tr_conf.dropout,
                                                       batch_first=True)
         self.transformer_encoder = TransformerEncoder(self.encoder_layers, tr_conf.n_layers)
-        self.fc2 = nn.Linear(50, 10)
+        self.lin = nn.Linear(tr_conf.dim_feedforward, 1)
 
     def forward(self, x):
         _,_,h,w=x.shape
         x=x.view(-1,1,h,w)
         feat=self.feature_extractor(x)
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = self.transformer_encoder(x)
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+        enc_feat=self.transformer_encoder(feat)
+        depth_pred=self.lin(enc_feat)
+        return depth_pred
     
