@@ -12,6 +12,8 @@ import json
 class CPR_dataset(Dataset):
     def __init__(self, conf,mode):
         self.data_root = conf.data_root
+        self.type=conf.type
+        self.n_pts=conf.n_pts
         if mode=='train':
             participants=conf.train_participants
         elif mode=='val':
@@ -36,10 +38,11 @@ class CPR_dataset(Dataset):
         depth_dir=os.path.join(img_dir,'depth')
         mask_dir=os.path.join(img_dir,'hand_mask')
         depth_sensor_file=os.path.join(img_dir,'kinect_depth_interp.txt')
-        bb_file=os.path.join(img_dir,'hand_bbs.json')
-        # Read the JSON file
-        with open(bb_file, 'r') as f:
-            bb_data = json.load(f)
+        if self.type=='image':
+            bb_file=os.path.join(img_dir,'hand_bbs.json')
+            # Read the JSON file
+            with open(bb_file, 'r') as f:
+                bb_data = json.load(f)
         ts_file=os.path.join(img_dir,'kinect_ts.txt')
         GT_depth=np.array(utils.read_allnum_lines(depth_sensor_file))
         ts=np.array(utils.read_allnum_lines(ts_file))
@@ -49,35 +52,60 @@ class CPR_dataset(Dataset):
         last_bb=''
         depth_img_list=[]
         hand_mask_list=[]
+        XYZ_list=[]
         for i,k in enumerate(img_keys):
             depth_file=os.path.join(depth_dir,k+'.png')
             depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
             mask_file=os.path.join(mask_dir,k+'.png')
             hand_mask=cv2.imread(mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-            if k in bb_data.keys():
-                bb=bb_data[k]
-                if bb!='':
-                    last_bb=bb
+            if self.type=='image':
+                if k in bb_data.keys():
+                    bb=bb_data[k]
+                    if bb!='':
+                        last_bb=bb
+                    else:
+                        bb=last_bb
                 else:
                     bb=last_bb
-            else:
-                bb=last_bb
-            if bb=='':
-                #get next bb
-                idx=i
-                while(bb==''):
-                    idx+=1
-                    bb=bb_data[img_keys[idx]]
-                last_bb=bb
-            if bb=='':
-                print('pp')
-            bb=[int(b) for b in bb.split(',')]
-            center_coord=(bb[0]+bb[2])//2
-            depth_img_list.append(depth_img[:,center_coord-self.img_width:center_coord+self.img_width])
-            hand_mask_list.append(hand_mask[:,center_coord-self.img_width:center_coord+self.img_width])
-        depth_img_ar=np.array(depth_img_list).astype(np.float32)
-        mask_img_ar=np.array(hand_mask_list).astype(np.float32)
-        return depth_img_ar,mask_img_ar,GT_depth,ts
+                if bb=='':
+                    #get next bb
+                    idx=i
+                    while(bb==''):
+                        idx+=1
+                        bb=bb_data[img_keys[idx]]
+                    last_bb=bb
+                if bb=='':
+                    print('pp')
+                bb=[int(b) for b in bb.split(',')]
+                center_coord=(bb[0]+bb[2])//2
+                depth_img_list.append(depth_img[:,center_coord-self.img_width:center_coord+self.img_width])
+                hand_mask_list.append(hand_mask[:,center_coord-self.img_width:center_coord+self.img_width])
+            elif self.type=='XYZ':
+                args=np.argwhere(hand_mask>0)
+                depth_vals = depth_img[args[:, 0], args[:, 1]]
+                valid_depth_args=depth_vals>0
+                valid_args=args[valid_depth_args]
+                valid_depths=depth_vals[valid_depth_args]
+                #select a n_pts number of points
+                y_vals=valid_args[:,0]
+                args_sorted = np.argsort(y_vals)[0:self.n_pts]
+                valid_depths=valid_depths[args_sorted]
+                valid_args=valid_args[args_sorted]
+
+                X,Y,Z=utils.get_XYZ(valid_args[:,1],valid_args[:,0],valid_depths)
+                if len(X)<self.n_pts:
+                    X = np.pad(X, (0, self.n_pts - len(X)), mode='constant')
+                    Y = np.pad(Y, (0, self.n_pts - len(Y)), mode='constant')
+                    Z = np.pad(Z, (0, self.n_pts - len(Z)), mode='constant')
+                XYZ_list.append(np.array([X,Y,Z]))
+
+        if self.type=='image':
+            depth_img_ar=np.array(depth_img_list).astype(np.float32)
+            mask_img_ar=np.array(hand_mask_list).astype(np.float32)
+            return depth_img_ar,mask_img_ar,GT_depth,ts
+        elif self.type=='XYZ':
+            XYZ=np.array(XYZ_list)
+            return XYZ,GT_depth,ts
 
 
 def get_dataloaders(conf):

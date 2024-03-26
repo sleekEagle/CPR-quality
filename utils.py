@@ -3,6 +3,13 @@ import os
 import shutil
 import numpy as np
 
+def get_XYZ(x,y,depth):
+    k=np.array([[615.873673811006,0,640.803032851225],[0,615.918359977960,365.547839233105],[0,0,1]])
+    X=(x-k[0,2])*depth/k[0,0]
+    Y=(y-k[1,2])*depth/k[1,1]
+    Z=depth
+    return X,Y,Z
+
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
     + time_object.minute * 60 
