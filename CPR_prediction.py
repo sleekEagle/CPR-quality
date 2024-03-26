@@ -3,13 +3,12 @@ import utils
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.linear_model import RANSACRegressor
-import pyransac3d as pyrsc
-from scipy.interpolate import interp1d
-from scipy.interpolate import CubicSpline
+# from sklearn.linear_model import RANSACRegressor
+# import pyransac3d as pyrsc
+# from scipy.interpolate import interp1d
+# from scipy.interpolate import CubicSpline
 
-session_dir=r'D:\CPR_extracted\P1\s_2\kinect'
-
+session_dir=r'D:\CPR_extracted\P0\s_1\kinect'
 
 def project_point_to_plane(point, plane):
     # Plane equation: ax + by + cz + d = 0
@@ -30,7 +29,7 @@ def dist_from_plane(A,B,C,D,XYZ_array):
 
 def read_XYZ(path):
     kinect_ts_path=os.path.join(path,'kinect_ts_interp.txt')
-    XYZ_dict_path=os.path.join(path,'wrist_keypts','hand_keypts_test_XYZ.json')
+    XYZ_dict_path=os.path.join(path,'wrist_keypts','hand_keypts_mediapipe_XYZ.json')
     kinect_depth_path=os.path.join(path,'kinect_depth_interp.txt')
 
     with open(XYZ_dict_path, 'r') as file:
@@ -46,12 +45,14 @@ def read_XYZ(path):
     XYZ_idx_list=[]
     for i,key in enumerate(sorted_keys):
         vals=XYZ_dict[key]
-        if vals=='' or len(vals)==0: continue
+        if len(vals)==0 or vals['0']=='': continue
+        if vals=='' : continue
         wrist=[float(v) for v in vals['0']]
         XYZ_list.append(wrist) 
         XYZ_idx_list.append(i) 
     
     XYZ_array=np.array(XYZ_list)
+
 
     output={}
     output['XYZ_array']=XYZ_array

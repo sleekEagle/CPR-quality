@@ -65,4 +65,19 @@ def main():
 if __name__ == "__main__":
     main()
 
+
+#manually define bbs
+path='D:\CPR_extracted\P20\s_17\kinect'
+img_dir=os.path.join(path,'color')
+img_files=utils.list_files(img_dir,'jpg')
+hand_bbs_path=os.path.join(path,'hand_bbs.json')
+hand_bbs={}
+bb=','.join(str(s) for s in [576,340,671,418])
+for img_file in img_files:
+    hand_bbs[img_file.split('.')[0]]=bb
+# Save the hand_bbs dictionary as a JSON file
+with open(hand_bbs_path, 'w') as file:
+    file.write(json.dumps(hand_bbs))
+
+
             

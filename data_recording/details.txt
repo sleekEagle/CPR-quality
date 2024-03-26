@@ -1,0 +1,9 @@
+display time on the Windows terminal :
+copy paste this into windows terminal 
+
+while ($true) {
+    Clear-Host
+    $epochTimeMs = [int][double]::Parse((Get-Date -UFormat %s)) * 1000 + (Get-Date).Millisecond
+    Write-Host "`r$epochTimeMs" -NoNewline
+    Start-Sleep -Milliseconds 1
+}

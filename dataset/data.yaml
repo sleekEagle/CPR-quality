@@ -1,0 +1,5 @@
+names:
+- hand
+nc: 1
+train: C:\Users\lahir\code\CPR-quality\dataset/train/images
+val: C:\Users\lahir\code\CPR-quality\dataset/valid/images

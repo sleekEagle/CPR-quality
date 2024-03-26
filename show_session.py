@@ -7,7 +7,7 @@ import sys
 import argparse
 
 def show_video(dir_path,show_kypts,bb):
-    keypt_file=os.path.join(dir_path,'kinect','wrist_keypts','hand_keypts_mediapipe.json')
+    keypt_file=os.path.join(dir_path,'kinect','wrist_keypts','hand_keypts_mmpose_finetuned_RHD2D.json')
     img_dir=os.path.join(dir_path,'kinect','color')
     imgs=utils.get_files_with_str(img_dir,'.jpg')
     if show_kypts:
@@ -49,8 +49,8 @@ def show_video(dir_path,show_kypts,bb):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root_dir", type=str, default="D:\\CPR_extracted\\", help="Path to data directory")
-    parser.add_argument("-p", type=str, default="P18", help="Path to participant directory")
-    parser.add_argument("-s", type=str, default="s_0", help="Path to session directory")
+    parser.add_argument("-p", type=str, default="P1", help="Path to participant directory")
+    parser.add_argument("-s", type=str, default="s_2", help="Path to session directory")
     parser.add_argument("--kypts", type=bool, default=True, help="Should kypts be displayed")
     parser.add_argument("--bb", type=bool, default=True, help="Should bounding bx be displayed")
 

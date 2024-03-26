@@ -6,6 +6,17 @@ import utils
 import os
 import json
 import os
+import numpy as np
+
+
+import cv2
+import matplotlib.pyplot as plt
+
+
+    # cv2.circle(image, (int(top_keypoint[0]),int(top_keypoint[1])), 5, (0, 255, 0), 2)
+    # cv2.imshow("Image", image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
 def show_img(image):
     # Check if the image was successfully loaded
@@ -189,6 +200,65 @@ trained on:
     onehand10k : td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256
 '''
 
+def detec_keypoints_dir_mmpose(data_path,model_name):
+    from mmdet.apis import init_detector, inference_detector,DetInferencer
+    from mmpose.apis import MMPoseInferencer
+    import numpy as np
+    from mmcv.image import imread
+    from PIL import Image
+    import cv2
+    # from mmpose.apis import init_pose_model, inference_top_down_pose_model
+
+    config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
+    checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_60.pth'
+    # pose_model=init_pose_model(config_file,checkpoint_file)
+
+    inferencer = MMPoseInferencer(
+        pose2d=config_file,
+        pose2d_weights=checkpoint_file
+    )
+    # inferencer = MMPoseInferencer('td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256')
+
+    img_files=utils.list_files(data_path,'jpg')
+    for img_file in img_files:
+        img=cv2.imread(os.path.join(data_path,img_file))
+        result_generator = inferencer(img, show=False)
+        result=next(result_generator)
+        kypts=result['predictions'][0][0]['keypoints'][0]
+        # Draw a red point on the image
+        cv2.circle(img, (int(kypts[0]),int(kypts[1])), 5, (0, 0, 255), -1)
+        # Show the image
+        cv2.imshow('Image', img)
+        # Wait for a key press and then close the window
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+# annot_file=r'C:\Users\lahir\Downloads\cpr_data\annotations\train.json'
+# def read_json_file(file_path):
+#     import json
+#     with open(file_path, 'r') as file:
+#         data = json.load(file)
+#     return data
+
+# # Example usage
+# import cv2
+# import os
+# data_path=r'C:\Users\lahir\Downloads\cpr_data'
+# data = read_json_file(annot_file)
+# img_name='train/P22_s_12_01063.jpg'
+# values=[item for item in data['images'] if item['file_name']==img_name]
+# id=values[0]['id']  
+# h,w=values[0]['height'],values[0]['width']
+# [item for item in data['annotations'] if item['image_id']==id][0]['keypoints'][0]
+# img = cv2.imread(os.path.join(data_path,img_name))
+# cv2.imshow('Image', img)
+# # Wait for a key press and then close the window
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+
+
+
 def detect_kypts_mmpose(model_name):
     from mmdet.apis import init_detector, inference_detector,DetInferencer
     from mmpose.apis import MMPoseInferencer
@@ -203,8 +273,11 @@ def detect_kypts_mmpose(model_name):
         'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
         'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
     }
+    config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
+    checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_60.pth'
     model_str=models[model_name]
     print(f'Using model: {model_str}')
+    model_name='finetuned_RHD2D'
 
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
@@ -226,10 +299,13 @@ def detect_kypts_mmpose(model_name):
             destination_file=os.path.join(destination_directory,f'hand_keypts_mmpose_{model_name}.json')
             if os.path.exists(destination_file):
                 os.remove(destination_file)
-            inferencer = MMPoseInferencer(model_str)
+            # inferencer = MMPoseInferencer(model_str)
+            inferencer = MMPoseInferencer(
+                pose2d=config_file,
+                pose2d_weights=checkpoint_file
+            )
             with open(destination_file,'w') as file:
                 output={}
-                img_list=[]
                 for img_file in img_files:
                     img_path=os.path.join(img_dir,img_file)
                     img=cv2.imread(img_path)
@@ -240,16 +316,22 @@ def detect_kypts_mmpose(model_name):
                     last_bb=hand_bb
                     pad=80
                     img_crop= utils.crop_img_bb(img,hand_bb,pad)
-                    img_list.append(img_crop)
-                result_generator = inferencer(img_list, show=False)
-                for i,result in enumerate(result_generator):
-                    print('progress:',i,'/',len(img_list),end='\r')
-                    # result = next(result_generator)
+                    result_generator = inferencer(img_crop, show=False)
+                    result=next(result_generator)
                     kypts=result['predictions'][0][0]['keypoints']
                     x_vals=[val[0]+hand_bb[0]-pad for val in kypts]
                     y_vals=[val[1]+hand_bb[1]-pad for val in kypts]
                     sub_dict={"x":x_vals,"y":y_vals}
-                    output[img_files[i].split('.')[0]]=sub_dict
+                    output[img_file.split('.')[0]]=sub_dict
+
+                    # Display the image
+                    # for k in kypts:
+                    #     cv2.circle(img_crop, (int(k[0]), int(k[1])), 5, (0, 255, 0), -1)
+                    # cv2.imshow('Image', img_crop)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                
+
                 json.dump(output, file)
 
 #object detection
@@ -288,26 +370,27 @@ def get_personBB():
                     
 
 if __name__ == "__main__":
-    detect_kypts_mmpose('coco')
+    detect_kypts_mmpose('RHD2D')
+    # detec_keypoints_dir_mmpose(r'C:\Users\lahir\Downloads\cpr_data\test','RHD2D')
 
 
 
-from mmdet.apis import init_detector, inference_detector,DetInferencer
-from mmpose.apis import MMPoseInferencer
-import numpy as np
-from mmcv.image import imread
-from PIL import Image
-import cv2
+# from mmdet.apis import init_detector, inference_detector,DetInferencer
+# from mmpose.apis import MMPoseInferencer
+# import numpy as np
+# from mmcv.image import imread
+# from PIL import Image
+# import cv2
 
-models={
-    'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
-    'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
-    'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
-}
-model_str=models['RHD2D']
-inferencer = MMPoseInferencer(model_str)
-result_generator = inferencer(r'C:\Users\lahir\Downloads\c.jpg', show=True)
-result = next(result_generator)
+# models={
+#     'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
+#     'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
+#     'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
+# }
+# model_str=models['RHD2D']
+# inferencer = MMPoseInferencer(model_str)
+# result_generator = inferencer(r'C:\Users\lahir\Downloads\c.jpg', show=True)
+# result = next(result_generator)
 
 
 
