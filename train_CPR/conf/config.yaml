@@ -3,3 +3,16 @@ train_participants: ['P0','P1','P2','P3','P4','P5']
 test_participants: ['P6','P7','P8','P9','P10','P11','P12','P13','P14','P15','P16','P17','P18','P19','P20','P21','P22','P23']
 img_width: 250
 bs: 1
+model:
+  in_channels: 1
+  out_channels: [10,20]
+  kernel_size: [5,5]
+  transformer:
+    d_model: 128
+    nhead: 8
+    dim_feedforward: 128
+    dropout: 0.2
+    n_layers: 3
+
+
+

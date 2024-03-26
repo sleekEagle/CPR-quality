@@ -87,9 +87,10 @@ def get_dataloaders(conf):
     test_dataset = CPR_dataset(conf,'train')
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
 
-    for batch in train_dataloader:
-        print(batch)
+    return train_dataloader, test_dataloader
 
+    # for batch in train_dataloader:
+    #     print(batch)
 
 # # Create your dataset instance
 # data_root=r'D:\CPR_extracted'
