@@ -1,0 +1,14 @@
+*.jpeg
+*.jpg
+*.png
+*.pt
+*.pyc
+*.npy
+kypt_transformer/*
+*.gif
+*.pickle
+*.pth
+*.log
+*.html
+settings.json
+outputs/*
