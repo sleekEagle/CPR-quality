@@ -46,7 +46,7 @@ class CPR_dataset(Dataset):
         img_files=utils.get_files_with_str(os.path.join(img_dir,'color'),'.jpg')
         img_keys=[os.path.basename(f).split('.')[0] for f in img_files]
         img_keys.sort()
-        last_bb=-1
+        last_bb=''
         depth_img_list=[]
         hand_mask_list=[]
         for i,k in enumerate(img_keys):
@@ -56,29 +56,38 @@ class CPR_dataset(Dataset):
             hand_mask=cv2.imread(mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
             if k in bb_data.keys():
                 bb=bb_data[k]
-                last_bb=bb
+                if bb!='':
+                    last_bb=bb
+                else:
+                    bb=last_bb
             else:
                 bb=last_bb
-            if bb==-1:
+            if bb=='':
                 #get next bb
                 idx=i
-                while(bb==-1):
+                while(bb==''):
                     idx+=1
                     bb=bb_data[img_keys[idx]]
+                last_bb=bb
+            if bb=='':
+                print('pp')
             bb=[int(b) for b in bb.split(',')]
             center_coord=(bb[0]+bb[2])//2
             depth_img_list.append(depth_img[:,center_coord-self.img_width:center_coord+self.img_width])
             hand_mask_list.append(hand_mask[:,center_coord-self.img_width:center_coord+self.img_width])
-        depth_img_ar=np.array(depth_img_list)
-        mask_img_ar=np.array(hand_mask_list)
+        depth_img_ar=np.array(depth_img_list).astype(np.float32)
+        mask_img_ar=np.array(hand_mask_list).astype(np.float32)
         return depth_img_ar,mask_img_ar,GT_depth,ts
 
 
 def get_dataloaders(conf):
     train_dataset = CPR_dataset(conf,'train')
-    batch_size = 1
-    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    for batch in dataloader:
+    train_dataloader = DataLoader(train_dataset, batch_size=conf.bs, shuffle=True)
+
+    test_dataset = CPR_dataset(conf,'train')
+    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
+
+    for batch in train_dataloader:
         print(batch)
 
 
