@@ -170,7 +170,7 @@ def interpolate_between_ts_cube(signal,in_ts,out_ts,plot=False):
         plt.plot(in_ts,signal)
         plt.plot(out_ts,pred)
         plt.show()
-    return out_ts,valid_out_ts,pred
+    return out_ts,valid_out_ts,
 
 # animate_pt_seq(np.array([[0,0,0],[1,1,1],[2,2,2],[3,3,3]]))
 def animate_pt_seq(data, interval=0.5):

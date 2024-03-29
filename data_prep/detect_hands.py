@@ -27,7 +27,7 @@ def get_bb(results):
 
 def main():
     if len(sys.argv)==1:
-        root_dir=r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images'
+        root_dir=r'D:\CPR_extracted'
     else:
         root_dir = sys.argv[1]
     base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))
@@ -36,6 +36,8 @@ def main():
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         sleep=True
         for session_dir in session_dirs:
+            # if session_dir!=r'D:\CPR_extracted\P21\s_6':
+            #     continue
             hand_bbs={}
             print(session_dir)
             logging.info(f"Processing session directory: {session_dir}")
@@ -45,6 +47,9 @@ def main():
                 sleep=False
                 continue
             img_dir=os.path.join(session_dir,'kinect','color')
+            if not os.path.exists(img_dir):
+                print(f'{img_dir} does not exist. Continuing...')
+                continue
             img_files=utils.list_files(img_dir,'jpg')
             for i,img_file in enumerate(img_files):
                 print(f'Processing {i}/{len(img_files)}')
@@ -67,17 +72,17 @@ if __name__ == "__main__":
 
 
 #manually define bbs
-path='D:\CPR_extracted\P20\s_17\kinect'
-img_dir=os.path.join(path,'color')
-img_files=utils.list_files(img_dir,'jpg')
-hand_bbs_path=os.path.join(path,'hand_bbs.json')
-hand_bbs={}
-bb=','.join(str(s) for s in [576,340,671,418])
-for img_file in img_files:
-    hand_bbs[img_file.split('.')[0]]=bb
-# Save the hand_bbs dictionary as a JSON file
-with open(hand_bbs_path, 'w') as file:
-    file.write(json.dumps(hand_bbs))
+# path='D:\CPR_extracted\P20\s_17\kinect'
+# img_dir=os.path.join(path,'color')
+# img_files=utils.list_files(img_dir,'jpg')
+# hand_bbs_path=os.path.join(path,'hand_bbs.json')
+# hand_bbs={}
+# bb=','.join(str(s) for s in [576,340,671,418])
+# for img_file in img_files:
+#     hand_bbs[img_file.split('.')[0]]=bb
+# # Save the hand_bbs dictionary as a JSON file
+# with open(hand_bbs_path, 'w') as file:
+#     file.write(json.dumps(hand_bbs))
 
 
             

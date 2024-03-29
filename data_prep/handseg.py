@@ -42,7 +42,7 @@ def main():
     for subj_dir in subj_dirs:
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         for session_dir in session_dirs:
-            if session_dir=='/p/blurdepth/data/CPR_extracted/P21/s_6':
+            if session_dir!=r'D:\CPR_extracted\P21\s_6':
                 continue
             print(session_dir)
             logging.info(f'{session_dir}')

@@ -17,7 +17,10 @@ def get_XYZ(x,y,depth,k):
     return X,Y,Z
 
 def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
-    depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+    if type(depth_file)==str:
+        depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+    else:
+        depth_img=depth_file
     # plt.scatter(x,y, c='r', marker='x')
     # plt.imshow(depth_img)
     # plt.show()
@@ -30,10 +33,13 @@ def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
     else:
         #get the closest valid depth value
         valid_sensor_depth=depth_img>0
-        if not os.path.exists(hand_mask_file):
-            wrist_depth=-1
+        if type(hand_mask_file)==str:
+            if not os.path.exists(hand_mask_file):
+                wrist_depth=-1
+            else:
+                hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
         else:
-            hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            hand_mask=hand_mask_file
             valid_depth_mask=(valid_sensor_depth) & (hand_mask>0)
             valid_args=np.argwhere(valid_depth_mask>0)
             closest_arg=np.argmin(np.sum(np.abs(valid_args-np.array([y,x])),axis=1))
@@ -83,128 +89,251 @@ def mask_XYZ():
 
 # plt.plot(depth_list)
 
+def get_depth(pt1,pt2):
+    return np.sqrt(np.square(np.array(pt1)-np.array(pt2)).sum())
+
+def detect_outliers(data):
+    median = np.median(data)
+    mad = np.median(np.abs(data - median))
+    threshold = 1* mad
+    outliers = np.abs(data - median) > threshold
+    return outliers
 
 def sift_XYZ():
-
     sift = cv2.SIFT_create(contrastThreshold=0.02)
     bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    # bf = cv2.BFMatcher()
 
-    root=r'D:\CPR_extracted\P1\s_2\kinect'
-    img_path=os.path.join(root,'color')
-    hand_mask_dir=os.path.join(root,'hand_mask')
-    depth_dir=os.path.join(root,'depth')
-    with open(os.path.join(root,'hand_bbs.json'), 'r') as f:
-        hand_bbs = json.load(f)
-    img_files=utils.list_files(img_path,'jpg')
-    first_desc=-1
-    first_kypts=-1
-    first_depth_path=-1
-    first_mask_path=-1
-    n=0
-    max_matches=20
-    first_img=-1
-    last_bb=-1
-    depth_list=[]
-    for i,img_file in enumerate(img_files):
-        print(img_file)
-        if i<10:
-            print('skipping...')
-            continue
-        if i==161:
-            pass
-        image = cv2.imread(os.path.join(img_path,img_file))
-        img_key=img_file.split('.')[0]
-        hand_mask_file=os.path.join(hand_mask_dir,img_key+'.png')
-        hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-        depth_path=os.path.join(depth_dir,img_key+'.png')
-        #get bb
-        if img_key in hand_bbs:
-            bb=hand_bbs[img_key]
-            last_bb=bb
-        else:
-            bb=last_bb
-        bb=[int(item) for item in bb.split(',')]
-        # bb[-1]=int(bb[1]+(bb[-1]-bb[1])*0.5)
-        cropped_image = utils.crop_img_bb(image,bb,0)
-        gray_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
-        # plt.imshow(gray_image), plt.axis('off'), plt.show()
+    root=r'D:\CPR_extracted'
+    part_dirs=utils.get_dirs_with_str(root,'P') 
+    for p in part_dirs:
+        subj_dirs=utils.get_dirs_with_str(p,'s')
+        for s in subj_dirs:
+            img_path=os.path.join(s,'kinect','color')
+            hand_mask_dir=os.path.join(s,'kinect','hand_mask')
+            depth_dir=os.path.join(s,'kinect','depth')
+            #read GT depth
+            depth_GT=utils.read_allnum_lines(os.path.join(s,'kinect','kinect_depth_interp.txt'))
+            with open(os.path.join(s,'kinect','hand_bbs.json'), 'r') as f:
+                hand_bbs = json.load(f)
+            img_files=utils.list_files(img_path,'jpg')
+
+
+            n=0
+            last_bb=-1
+            keypoints_list=[]
+            desc_list=[]
+            img_keys=[]
+            image0=-1
+            max_matches=20
+            
+            for i,img_file in enumerate(img_files):
+                print(img_file)
+                image = cv2.imread(os.path.join(img_path,img_file))
+                if i==0:
+                    image0=image
+                img_key=img_file.split('.')[0]
+                img_keys.append(img_key)
+
+                #get bb
+                if img_key in hand_bbs:
+                    bb=hand_bbs[img_key]
+                    last_bb=bb
+                else:
+                    bb=last_bb
+                bb=[int(item) for item in bb.split(',')]
+                bb[-1]=int(bb[1]+(bb[-1]-bb[1])*0.5)
+                cropped_image = utils.crop_img_bb(image,bb,0)
+                gray_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
+                
+                keypoints, descriptors = sift.detectAndCompute(gray_image, None)
+                
+                # select left or right half keypoints
+                handedness='left'
+                center_x=(bb[2]-bb[0])*0.5
+                if handedness=='left':
+                    idx=[i for i,k in enumerate(keypoints) if k.pt[0]>=center_x]
+                    keypoints=tuple([keypoints[j] for j in idx])
+                    descriptors=descriptors[idx]
+                elif handedness=='right':
+                    idx=[i for i,k in enumerate(keypoints) if k.pt[0]<=center_x]
+                    keypoints=tuple([keypoints[j] for j in idx])
+                    descriptors=descriptors[idx]
+                for k in keypoints:
+                    k.pt=(k.pt[0]+bb[0],k.pt[1]+bb[1])
+                keypoints_list.append(keypoints)
+                desc_list.append(descriptors)
+
+            #track a single keypoint
+            depth_path=os.path.join(depth_dir,img_keys[0]+'.png')
+            depth_img0=cv2.imread(depth_path,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            hand_mask_file=os.path.join(hand_mask_dir,img_keys[0]+'.png')
+            hand_mask0=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+
+            kpts0=keypoints_list[0]
+            desc0=desc_list[0]
+            xy_vals=[]
+            for i in range(1,len(keypoints_list)):
+                matches = bf.match(desc0,desc_list[i])
+                dists=np.array([match.distance for match in matches])
+                sorted_args=np.argsort(dists)
+                selected_args=sorted_args[:min(len(dists),max_matches)]
+                selected_matches = [matches[arg] for arg in selected_args]
+
+                queryIdx=[match.queryIdx for match in selected_matches]
+                trainIdx=[match.trainIdx for match in selected_matches]
+                
+                keypoints0=[kpts0[j] for j in queryIdx]
+                keypoints=[keypoints_list[i][j] for j in trainIdx]
+
+                arg=np.argmin([k.pt[1] for k in keypoints0])   
+                top_keypoint0=keypoints0[arg].pt
+                top_keypoint1=keypoints[arg].pt
+
+                xy_vals.append([top_keypoint0,top_keypoint1])
+            
+            #detect depths
+            depth_list=[]
+            for i,(pt0,pt1) in enumerate(xy_vals):
+                PT0=get_kypt_XYZ(pt0[0],pt0[1],depth_img0,hand_mask0)
+                depth_path=os.path.join(depth_dir,img_keys[i]+'.png')
+                depth_img=cv2.imread(depth_path,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                hand_mask_file=os.path.join(hand_mask_dir,img_keys[i]+'.png')
+                hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                img=cv2.imread(os.path.join(img_path,img_keys[i]+'.jpg'))
+                PT1=get_kypt_XYZ(pt1[0],pt1[1],depth_img,hand_mask)
+
+                #get the sign
+                if pt0[1]>=pt1[1]: sign==-1
+                else: sign=1
+                depth=get_depth(PT0,PT1)*sign
+                depth_list.append(depth)
+                print(depth)
+            print('here')
+            plt.plot(depth_list)
+
+
+
+
+
+
+
+
+            
+    #     if n==0:
+    #         first_desc=descriptors
+    #         first_kypts=keypoints
+    #         first_depth_path=depth_path
+    #         first_mask_path=hand_mask_file
+    #         first_img=gray_image
+    #         first_depth_img=depth_img
+    #         n+=1
+    #         continue
+            
+    #     n+=1
+    #     matches = bf.match(first_desc,descriptors)
+    #     dists=np.array([match.distance for match in matches])
+    #     sorted_args=np.argsort(dists)
+    #     selected_args=sorted_args[:min(len(dists),max_matches)]
+    #     queryIdx=[matches[arg].queryIdx for arg in selected_args]
+    #     trainIdx=[matches[arg].trainIdx for arg in selected_args]
+    #     keypoints1=[first_kypts[i] for i in queryIdx]
+    #     keypoints2=[keypoints[i] for i in trainIdx]
+
+    #     d=[]
+    #     for i,k in enumerate(keypoints1):
+    #         k1pt=keypoints1[i].pt
+    #         k2pt=keypoints2[i].pt
+    #         pt1=get_kypt_XYZ(k2pt[0],k2pt[1],first_depth_img,first_mask_path)
+    #         pt2=get_kypt_XYZ(k1pt[0],k1pt[1],depth_img,hand_mask_file)
+    #         #get the sign
+    #         y1,y2=k1pt[1],k2pt[1]
+    #         if y2>=y1:
+    #             sign=+1
+    #         else:   
+    #             sign=-1
+    #         depth=get_depth(pt1,pt2)*sign
+    #         d.append(depth)
+
+    #     outliers = detect_outliers(d)
+    #     keypoints1=[keypoints1[i] for i in range(len(keypoints1)) if not outliers[i]]
+    #     keypoints2=[keypoints2[i] for i in range(len(keypoints2)) if not outliers[i]]
+
+    #     #get the top most keypoint
+    #     arg=np.argmin([k.pt[1] for k in keypoints1])                
         
-        keypoints, descriptors = sift.detectAndCompute(gray_image, None)
-        # img_keypoints = cv2.drawKeypoints(gray_image, keypoints, None)
-        # plt.imshow(img_keypoints), plt.axis('off'), plt.show()
+    #     top_keypoint1=keypoints1[arg].pt
+    #     top_keypoint2=keypoints2[arg].pt
 
-        # valid_mask_args=np.argwhere(hand_mask>0)
-        # mask_x_min,mask_x_max=np.min(valid_mask_args[:,1]),np.max(valid_mask_args[:,1])
-        # mask_y_min,mask_y_max=np.min(valid_mask_args[:,0]),np.max(valid_mask_args[:,0])
-        # mask_y_new_max=mask_y_min+(mask_y_max-mask_y_min)*0.5
-        # new_hand_mask=np.zeros_like(hand_mask)
-        # new_hand_mask[int(mask_y_min):int(mask_y_new_max),int(mask_x_min):int(mask_x_max)]=1
-        # hand_mask=new_hand_mask*hand_mask
+    #     pt1=get_kypt_XYZ(top_keypoint1[0],top_keypoint1[1],depth_img,hand_mask_file)
+    #     pt2=get_kypt_XYZ(top_keypoint2[0],top_keypoint2[1],first_depth_img,first_mask_path)
+    #     #get the sign
+    #     y1,y2=top_keypoint1[1],top_keypoint2[1]
+    #     if y2>=y1:
+    #         sign=+1
+    #     else:   
+    #         sign=-1
+    #     depth=np.sqrt(np.square(np.array(pt1)-np.array(pt2)).sum())*sign
+    #     if abs(depth)>150:
+    #         print('here')
+    #     print(depth)
+    #     depth_list.append(depth)
 
-        #select keypints that are in the mask area
-        # valid_idx=[i for i,k in enumerate(keypoints) if hand_mask[int(k.pt[1]),int(k.pt[0])]>0]
-        # keypoints=[keypoints[i] for i in valid_idx]
-        # descriptors=descriptors[valid_idx]
-        if n==0:
-            first_desc=descriptors
-            first_kypts=keypoints
-            first_depth_path=depth_path
-            first_mask_path=hand_mask_file
-            first_img=gray_image
-            n+=1
-            continue
-        matches = bf.match(first_desc,descriptors)
-        dists=np.array([match.distance for match in matches])
-        sorted_args=np.argsort(dists)
-        selected_args=sorted_args[:min(len(dists),max_matches)]
-        queryIdx=[matches[arg].queryIdx for arg in selected_args]
-        trainIdx=[matches[arg].trainIdx for arg in selected_args]
-        keypoints1=[first_kypts[i] for i in queryIdx]
-        keypoints2=[keypoints[i] for i in trainIdx]
+    #     depth_gt_norm=np.array(depth_GT)-depth_GT[0]
 
-        # img3 = cv2.drawMatches(first_img, first_kypts, gray_image, keypoints, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        # plt.imshow(img3), plt.show()
+    # depth_list=np.array(depth_list)
+    # t=np.arange(0,len(depth_list))/depth_list[-1]
+    # d=utils.interpolate_between_ts(depth_list,t,t,fit_window=20)
+    # plt.plot(d)
+    # plt.plot(depth_gt_norm)
+    # plt.show()
 
-        # img_keypoints = cv2.drawKeypoints(gray_image, keypoints2, None)
-        # plt.imshow(img_keypoints), plt.axis('off'), plt.show()
-        # img_keypoints = cv2.drawKeypoints(first_img, keypoints1, None)
-        # plt.imshow(img_keypoints), plt.axis('off'), plt.show()
-
-        #get the top most keypoint
-        arg=np.argmin([k.pt[1] for k in keypoints1])
-        
-        top_keypoint1=keypoints1[arg].pt
-        top_keypoint2=keypoints2[arg].pt
-
-
-
-
-        # plt.scatter(int(top_keypoint2[0]),int(top_keypoint2[1]), c='r', marker='x')
-        # plt.imshow(image)
-        # plt.show()
-
-        pt1=get_kypt_XYZ(top_keypoint1[0],top_keypoint1[1],depth_path,hand_mask_file)
-        pt2=get_kypt_XYZ(top_keypoint2[0],top_keypoint2[1],first_depth_path,first_mask_path)
-        depth=np.sqrt(np.square(np.array(pt1)-np.array(pt2)).sum())
-        print(depth)
-        depth_list.append(depth)
-
-        # Plotting two images side by side
-        # fig, axs = plt.subplots(1, 2)
-        # axs[0].imshow(first_img)
-        # axs[0].scatter(top_keypoint1[0], top_keypoint1[1], c='r', marker='x')
-        # axs[0].set_title('First Image')
-
-        # axs[1].imshow(image)
-        # axs[1].scatter(top_keypoint2[0], top_keypoint2[1], c='r', marker='x')
-        # axs[1].set_title('Current Image')
-
-        # plt.show()
-
-    plt.plot(depth_list)
-    plt.show()
-
-    pass
+def extract_all_hand_points():
+    root_dir='D:\\CPR_extracted'
+    n_pts=1000
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            print(session_dir)
+            xyz_file_name=os.path.join(session_dir,'kinect','wrist_keypts',f'{n_pts}_pts_XYZ.npy')
+            if os.path.exists(xyz_file_name):
+                print(f'{xyz_file_name} exists. Continuing')
+                continue
+            img_dir=os.path.join(session_dir,'kinect','color')
+            depth_dir=os.path.join(session_dir,'kinect','depth')
+            ts_file=os.path.join(session_dir,'kinect','kinect_ts.txt')
+            hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
+            img_list=utils.list_files(img_dir,'jpg')
+            img_list.sort()
+            XYZ_list=[]
+            for i,img in enumerate(img_list):
+                print(f'Processing {i}/{len(img_list)}',end='\r')
+                if img.endswith('.jpg'):
+                    img_key=img.split('.')[0]
+                    depth_file=os.path.join(depth_dir,img_key+'.png')
+                    # depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                    hand_mask_file=os.path.join(hand_mask_dir,img_key+'.png')
+                    hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                    depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+                    args=np.argwhere(hand_mask>0)
+                    depth_vals = depth_img[args[:, 0], args[:, 1]]
+                    valid_depth_args=depth_vals>0
+                    valid_args=args[valid_depth_args]
+                    valid_depths=depth_vals[valid_depth_args]
+                    #select a n_pts number of points
+                    y_vals=valid_args[:,0]
+                    args_sorted = np.argsort(y_vals)[0:n_pts]
+                    valid_depths=valid_depths[args_sorted]
+                    valid_args=valid_args[args_sorted]
+                    X,Y,Z=utils.get_XYZ(valid_args[:,1],valid_args[:,0],valid_depths)
+                    if len(X)<n_pts:
+                        X = np.pad(X, (0, n_pts - len(X)), mode='constant')
+                        Y = np.pad(Y, (0, n_pts - len(Y)), mode='constant')
+                        Z = np.pad(Z, (0, n_pts - len(Z)), mode='constant')
+                    XYZ_list.append(np.array([X,Y,Z]))
+            XYZ=np.array(XYZ_list)
+            np.save(xyz_file_name, XYZ)
 
 
 def extract_3Dpts(model_name,method):
@@ -284,7 +413,9 @@ if __name__ == "__main__":
                         wrist_kypt: use the wrist keypoint as the keypoint")
     args = parser.parse_args()
     # mask_XYZ() 
-    extract_3Dpts(args.model,args.method)
+    # extract_3Dpts(args.model,args.method)
+    # extract_all_hand_points()
+    sift_XYZ()
         
 # t=np.arange(0,len(XYZ_list))
 
