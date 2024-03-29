@@ -1,22 +1,11 @@
-# import cv2
-# import numpy as np
 import sys
-sys.path.append('C:\\Users\\lahir\\code\\CPR-quality\\')
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import utils
-import os
 import json
-import os
 import numpy as np
-
-
+import argparse
 import cv2
-import matplotlib.pyplot as plt
-
-
-    # cv2.circle(image, (int(top_keypoint[0]),int(top_keypoint[1])), 5, (0, 255, 0), 2)
-    # cv2.imshow("Image", image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
 def show_img(image):
     # Check if the image was successfully loaded
@@ -256,7 +245,7 @@ def detec_keypoints_dir_mmpose(data_path,model_name):
 
 
 
-def detect_kypts_mmpose(model_name):
+def detect_kypts_mmpose(model_name,root_dir):
     from mmdet.apis import init_detector, inference_detector,DetInferencer
     from mmpose.apis import MMPoseInferencer
     import numpy as np
@@ -264,17 +253,17 @@ def detect_kypts_mmpose(model_name):
     from PIL import Image
     import cv2
 
-    root_dir=r'D:\CPR_extracted'
     models={
         'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
         'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
         'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
     }
-    config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
-    checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_110.pth'
-    model_str=models[model_name]
-    print(f'Using model: {model_str}')
-    model_name='finetuned_RHD2D'
+    if model_name is 'finetuned_RHD2D':
+        config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
+        checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_110.pth'
+    else:
+        model_str=models[model_name]
+        print(f'Using model: {model_str}')
 
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
@@ -294,11 +283,14 @@ def detect_kypts_mmpose(model_name):
             destination_file=os.path.join(destination_directory,f'hand_keypts_mmpose_{model_name}.json')
             if os.path.exists(destination_file):
                 os.remove(destination_file)
-            # inferencer = MMPoseInferencer(model_str)
-            inferencer = MMPoseInferencer(
+            if model_name=='finetuned_RHD2D':
+                inferencer = MMPoseInferencer(
                 pose2d=config_file,
                 pose2d_weights=checkpoint_file
-            )
+                )
+            else:
+                inferencer = MMPoseInferencer(model_str)
+
             with open(destination_file,'w') as file:
                 output={}
                 for img_file in img_files:
@@ -328,7 +320,7 @@ def detect_kypts_mmpose(model_name):
                 json.dump(output, file)
 
 #object detection
-def get_personBB():
+def get_personBB(root_dir):
     root_dir='D:\CPR_data_raw'
     subj_dirs=[os.path.join(root_dir,item,'extracted') for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
     for subj_dir in subj_dirs:
@@ -363,7 +355,12 @@ def get_personBB():
                     
 
 if __name__ == "__main__":
-    detect_kypts_mmpose('RHD2D')
+    parser = argparse.ArgumentParser(description='Detect Keypoints')
+    parser.add_argument('--data_path', type=str, default=r'D:\CPR_extracted', help='Path to data directory')
+    parser.add_argument('--model_name', type=str, default='finetuned_RHD2D', help='Path to data directory')
+    args=parser.parse_args()
+    
+    detect_kypts_mmpose(args.model_name,args.data_path)
     # detec_keypoints_dir_mmpose(r'C:\Users\lahir\Downloads\cpr_data\test','RHD2D')
 
 
