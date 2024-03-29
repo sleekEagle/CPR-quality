@@ -293,7 +293,7 @@ def detect_kypts_mmpose(model_name,root_dir):
 
             with open(destination_file,'w') as file:
                 output={}
-                for img_file in img_files:
+                for i,img_file in enumerate(img_files):
                     img_path=os.path.join(img_dir,img_file)
                     img=cv2.imread(img_path)
                     if hand_bbs[img_file.split('.')[0]]=='':
