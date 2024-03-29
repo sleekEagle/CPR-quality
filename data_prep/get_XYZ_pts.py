@@ -117,8 +117,7 @@ def sift_XYZ():
             with open(os.path.join(s,'kinect','hand_bbs.json'), 'r') as f:
                 hand_bbs = json.load(f)
             img_files=utils.list_files(img_path,'jpg')
-
-
+            
             n=0
             last_bb=-1
             keypoints_list=[]
@@ -211,82 +210,6 @@ def sift_XYZ():
                 print(depth)
             print('here')
             plt.plot(depth_list)
-
-
-
-
-
-
-
-
-            
-    #     if n==0:
-    #         first_desc=descriptors
-    #         first_kypts=keypoints
-    #         first_depth_path=depth_path
-    #         first_mask_path=hand_mask_file
-    #         first_img=gray_image
-    #         first_depth_img=depth_img
-    #         n+=1
-    #         continue
-            
-    #     n+=1
-    #     matches = bf.match(first_desc,descriptors)
-    #     dists=np.array([match.distance for match in matches])
-    #     sorted_args=np.argsort(dists)
-    #     selected_args=sorted_args[:min(len(dists),max_matches)]
-    #     queryIdx=[matches[arg].queryIdx for arg in selected_args]
-    #     trainIdx=[matches[arg].trainIdx for arg in selected_args]
-    #     keypoints1=[first_kypts[i] for i in queryIdx]
-    #     keypoints2=[keypoints[i] for i in trainIdx]
-
-    #     d=[]
-    #     for i,k in enumerate(keypoints1):
-    #         k1pt=keypoints1[i].pt
-    #         k2pt=keypoints2[i].pt
-    #         pt1=get_kypt_XYZ(k2pt[0],k2pt[1],first_depth_img,first_mask_path)
-    #         pt2=get_kypt_XYZ(k1pt[0],k1pt[1],depth_img,hand_mask_file)
-    #         #get the sign
-    #         y1,y2=k1pt[1],k2pt[1]
-    #         if y2>=y1:
-    #             sign=+1
-    #         else:   
-    #             sign=-1
-    #         depth=get_depth(pt1,pt2)*sign
-    #         d.append(depth)
-
-    #     outliers = detect_outliers(d)
-    #     keypoints1=[keypoints1[i] for i in range(len(keypoints1)) if not outliers[i]]
-    #     keypoints2=[keypoints2[i] for i in range(len(keypoints2)) if not outliers[i]]
-
-    #     #get the top most keypoint
-    #     arg=np.argmin([k.pt[1] for k in keypoints1])                
-        
-    #     top_keypoint1=keypoints1[arg].pt
-    #     top_keypoint2=keypoints2[arg].pt
-
-    #     pt1=get_kypt_XYZ(top_keypoint1[0],top_keypoint1[1],depth_img,hand_mask_file)
-    #     pt2=get_kypt_XYZ(top_keypoint2[0],top_keypoint2[1],first_depth_img,first_mask_path)
-    #     #get the sign
-    #     y1,y2=top_keypoint1[1],top_keypoint2[1]
-    #     if y2>=y1:
-    #         sign=+1
-    #     else:   
-    #         sign=-1
-    #     depth=np.sqrt(np.square(np.array(pt1)-np.array(pt2)).sum())*sign
-    #     if abs(depth)>150:
-    #         print('here')
-    #     print(depth)
-    #     depth_list.append(depth)
-
-    #     depth_gt_norm=np.array(depth_GT)-depth_GT[0]
-
-    # depth_list=np.array(depth_list)
-    # t=np.arange(0,len(depth_list))/depth_list[-1]
-    # d=utils.interpolate_between_ts(depth_list,t,t,fit_window=20)
-    # plt.plot(d)
-    # plt.plot(depth_gt_norm)
-    # plt.show()
 
 def extract_all_hand_points():
     root_dir='D:\\CPR_extracted'

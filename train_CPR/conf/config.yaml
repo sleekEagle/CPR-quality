@@ -1,5 +1,5 @@
 data_root: 'D:\CPR_extracted'
-type: 'XYZ' # 'XYZ' : data output is 3D points or 'image': depth images
+type: "XYZ" # 'XYZ' : data input is 3D points or 'image': images
 train_participants: ['P0','P1','P2','P3','P4','P5']
 test_participants: ['P6','P7','P8','P9','P10','P11','P12','P13','P14','P15','P16','P17','P18','P19','P20','P21','P22','P23']
 img_width: 250

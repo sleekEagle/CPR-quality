@@ -115,9 +115,6 @@ def detect_object(path,obejct_name='person'):
 # path=r'D:\CPR_data_raw\P13\extracted\s_0\color\01319.jpg'
 # image,xy_vals=wrst.get_kypts(path)
 
-
-
-
 def detect_kypts_mp():
     import mediapipe as mp
     from mediapipe.tasks import python
@@ -274,7 +271,7 @@ def detect_kypts_mmpose(model_name):
         'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
     }
     config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
-    checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_60.pth'
+    checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_110.pth'
     model_str=models[model_name]
     print(f'Using model: {model_str}')
     model_name='finetuned_RHD2D'
@@ -283,8 +280,6 @@ def detect_kypts_mmpose(model_name):
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            if not session_dir==r'D:\CPR_extracted\P1\s_2':
-                continue
             print(session_dir)
             handbb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
             if os.path.exists(handbb_path):
@@ -330,8 +325,6 @@ def detect_kypts_mmpose(model_name):
                     # cv2.imshow('Image', img_crop)
                     # cv2.waitKey(0)
                     # cv2.destroyAllWindows()
-                
-
                 json.dump(output, file)
 
 #object detection

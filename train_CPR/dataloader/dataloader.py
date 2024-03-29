@@ -34,18 +34,27 @@ class CPR_dataset(Dataset):
     def __getitem__(self, index):
         session_dir=self.session_dirs[index]
         print('Accessing data from :',session_dir)
+
         img_dir=os.path.join(session_dir,'kinect')
+        depth_sensor_file=os.path.join(img_dir,'kinect_depth_interp.txt')
+        ts_file=os.path.join(img_dir,'kinect_ts.txt')
+        GT_depth=np.array(utils.read_allnum_lines(depth_sensor_file))
+        ts=np.array(utils.read_allnum_lines(ts_file))
+
+        if self.type=='XYZ':
+            XYZ_file=os.path.join(img_dir,'wrist_keypts','1000_pts_XYZ.npy')
+            XYZ=np.load(XYZ_file)
+            return XYZ,GT_depth,ts
+
         depth_dir=os.path.join(img_dir,'depth')
         mask_dir=os.path.join(img_dir,'hand_mask')
-        depth_sensor_file=os.path.join(img_dir,'kinect_depth_interp.txt')
+        
         if self.type=='image':
             bb_file=os.path.join(img_dir,'hand_bbs.json')
             # Read the JSON file
             with open(bb_file, 'r') as f:
                 bb_data = json.load(f)
-        ts_file=os.path.join(img_dir,'kinect_ts.txt')
-        GT_depth=np.array(utils.read_allnum_lines(depth_sensor_file))
-        ts=np.array(utils.read_allnum_lines(ts_file))
+        
         img_files=utils.get_files_with_str(os.path.join(img_dir,'color'),'.jpg')
         img_keys=[os.path.basename(f).split('.')[0] for f in img_files]
         img_keys.sort()
@@ -58,7 +67,7 @@ class CPR_dataset(Dataset):
             depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
             mask_file=os.path.join(mask_dir,k+'.png')
             hand_mask=cv2.imread(mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
-            if self.type=='image':
+            if self.in_type=='image':
                 if k in bb_data.keys():
                     bb=bb_data[k]
                     if bb!='':
@@ -80,7 +89,7 @@ class CPR_dataset(Dataset):
                 center_coord=(bb[0]+bb[2])//2
                 depth_img_list.append(depth_img[:,center_coord-self.img_width:center_coord+self.img_width])
                 hand_mask_list.append(hand_mask[:,center_coord-self.img_width:center_coord+self.img_width])
-            elif self.type=='XYZ':
+            elif self.in_type=='XYZ':
                 args=np.argwhere(hand_mask>0)
                 depth_vals = depth_img[args[:, 0], args[:, 1]]
                 valid_depth_args=depth_vals>0
@@ -99,11 +108,11 @@ class CPR_dataset(Dataset):
                     Z = np.pad(Z, (0, self.n_pts - len(Z)), mode='constant')
                 XYZ_list.append(np.array([X,Y,Z]))
 
-        if self.type=='image':
+        if self.in_type=='image':
             depth_img_ar=np.array(depth_img_list).astype(np.float32)
             mask_img_ar=np.array(hand_mask_list).astype(np.float32)
             return depth_img_ar,mask_img_ar,GT_depth,ts
-        elif self.type=='XYZ':
+        elif self.in_type=='XYZ':
             XYZ=np.array(XYZ_list)
             return XYZ,GT_depth,ts
 

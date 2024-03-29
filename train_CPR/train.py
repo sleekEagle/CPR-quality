@@ -3,13 +3,14 @@ from dataloader import dataloader
 from model.CPRnet import CPRnet
 import torch.nn as nn
 import torch
+import matplotlib.pyplot as plt
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg):
+    train_dataloader, test_dataloader = dataloader.get_dataloaders(cfg)
     loss_function = nn.MSELoss()
     cpr_model=CPRnet(cfg)
     optimizer = torch.optim.Adam(cpr_model.parameters(), lr=cfg.lr)
-    train_dataloader, test_dataloader = dataloader.get_dataloaders(cfg)
     for i in range(cfg.epochs):
         for batch in train_dataloader:
             optimizer.zero_grad()
@@ -18,6 +19,9 @@ def main(cfg):
                 cpr_model(depth_img_ar)
             elif cfg.type=='XYZ':
                 XYZ_ar,GT_depth,ts=batch
+                GT_depth=GT_depth-GT_depth[:,0]
+                # plt.plot(GT_depth.numpy()[0,:])
+                # plt.show()
                 bs,seq,_,_=XYZ_ar.shape
                 fist_XYZ=XYZ_ar[:,0,:,:].unsqueeze(1)
                 XYZ_ar = XYZ_ar-fist_XYZ
