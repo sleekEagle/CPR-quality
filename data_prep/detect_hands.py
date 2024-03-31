@@ -9,6 +9,7 @@ import utils
 import json
 import time
 import logging
+import argparse
 
 # Set up logging configuration
 logging.basicConfig(filename='output.log', level=logging.INFO)
@@ -67,8 +68,49 @@ def main():
             with open(hand_bbs_path, 'w') as file:
                 file.write(json.dumps(hand_bbs))
 
+def cannon(root_dir):
+    base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))
+    subj_dirs=[os.path.join(root_dir,item) for item in utils.list_subdirectories(root_dir) if item[0].lower()=='p']
+    for subj_dir in subj_dirs:
+        session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
+        for session_dir in session_dirs:
+            hand_bbs={}
+            print(session_dir)
+            logging.info(f"Processing session directory: {session_dir}")
+            hand_bbs_path=os.path.join(session_dir,'hand_bbs.json')
+            if os.path.exists(hand_bbs_path):
+                print(f'{hand_bbs_path} exists, skipping')
+                sleep=False
+                continue
+
+            img_dir_=utils.list_subdirectories(session_dir)
+            if len(img_dir_)==0:
+                print(f'{session_dir} does not exist. Continuing...')
+                continue
+            img_dir=os.path.join(session_dir,img_dir_[0])
+            img_files=utils.list_files(img_dir,'jpg')
+            for i,img_file in enumerate(img_files):
+                print(f'Processing {i}/{len(img_files)}')
+                logging.info(f'Processing {i}/{len(img_files)}')
+                img_path=os.path.join(img_dir,img_file)
+                results = base_model.predict(img_path)
+                bb=get_bb(results)
+                if len(bb)==0:
+                    print(f'No bounding box found for {img_file}')
+                    hand_bbs[img_file.split('.')[0]]=""
+                else:
+                    bbstr= ','.join([str(int(item)) for item in list(bb)])
+                    hand_bbs[img_file.split('.')[0]]=bbstr
+            # Write the JSON string to the output file
+            with open(hand_bbs_path, 'w') as file:
+                file.write(json.dumps(hand_bbs))
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Detect hands in images.')
+    parser.add_argument('--root_dir', type=str, default=r'D:\canon_images', help='Root directory for image data')
+    args = parser.parse_args()
+    
+    cannon(args.root_dir)
 
 
 #manually define bbs
