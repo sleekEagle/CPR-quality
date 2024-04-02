@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 # from scipy.interpolate import interp1d
 # from scipy.interpolate import CubicSpline
 
-session_dir=r'D:\CPR_extracted\P0\s_1\kinect'
 
 def project_point_to_plane(point, plane):
     # Plane equation: ax + by + cz + d = 0
@@ -27,16 +26,23 @@ def project_point_to_plane(point, plane):
 def dist_from_plane(A,B,C,D,XYZ_array):
     return (A*XYZ_array[:,0]+B*XYZ_array[:,1]+C*XYZ_array[:,2]+D)/np.sqrt(A**2+B**2+C**2)
 
-def read_XYZ(path):
+def read_XYZ(path,XYZ_file):
     kinect_ts_path=os.path.join(path,'kinect_ts_interp.txt')
-    XYZ_dict_path=os.path.join(path,'wrist_keypts','hand_keypts_mediapipe_XYZ.json')
+    XYZ_dict_path=os.path.join(path,'wrist_keypts',XYZ_file)
     kinect_depth_path=os.path.join(path,'kinect_depth_interp.txt')
 
+    #get image file keys    
+    img_names=utils.get_files_with_str(os.path.join(path,'color'),'.jpg')
+    valid_keys=[os.path.basename(img).split('.')[0] for img in img_names]
+
+    if not os.path.exists(XYZ_dict_path):
+        print(f'{XYZ_dict_path} does not exist')
+        return -1
     with open(XYZ_dict_path, 'r') as file:
         XYZ_dict = json.load(file)
 
     kinect_ts_list=utils.read_allnum_lines(kinect_ts_path)    
-    sorted_keys=[key for key in XYZ_dict.keys()]
+    sorted_keys=[key for key in XYZ_dict.keys() if key in valid_keys]
     sorted_keys.sort()
 
     kinect_inter_depth_list=utils.read_allnum_lines(kinect_depth_path)
@@ -62,7 +68,7 @@ def read_XYZ(path):
 
     return output
 
-def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
+def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot=False):
     kinect_ts_list=np.array(kinect_ts_list)
     valid_t=np.array(kinect_ts_list)[XYZ_idx_list]
     ts_x,valid_out_ts,x_pred=utils.interpolate_between_ts_cube(XYZ_array[:,0],valid_t,kinect_ts_list,plot=False)
@@ -95,12 +101,12 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
     peaks=peaks[:l]
     valleys=valleys[:l]
 
-
-    plt.plot(pred)
-    plt.plot(peaks, pred[peaks], "x")
-    plt.plot(valleys, pred[valleys], "o")
-    plt.title('peaks and valleys')
-    plt.show()
+    if plot:
+        plt.plot(pred)
+        plt.plot(peaks, pred[peaks], "x")
+        plt.plot(valleys, pred[valleys], "o")
+        plt.title('peaks and valleys')
+        plt.show()
 
     # fit_window=50
     # deg=4
@@ -135,13 +141,66 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list):
     
     return output
 
-init_output=read_XYZ(session_dir)
 
+plot_3d=False
+plot_depth=False
+root_dir=r'D:\CPR_extracted'
+method='mediapipe'
+XYZ_file=f'hand_keypts_{method}_XYZ.json'
+output_file=f'performance_{method}.txt'
+output_file=os.path.join(root_dir,output_file)
 
-XYZ_array = init_output['XYZ_array']
-kinect_inter_depth_list=init_output['kinect_inter_depth_list']
-kinect_ts_list=init_output['kinect_ts_list']
-XYZ_idx_list=init_output['XYZ_idx_list']
+with open(output_file, 'a') as file:
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            # if session_dir==r'D:\CPR_extracted\P9\s_8':
+            print(session_dir)
+            path=os.path.join(session_dir,'kinect')
+            if not os.path.exists(path):
+                file.write(session_dir+','+str(-1))
+                file.write("\n")
+                print('written')
+                continue
+            init_output=read_XYZ(path,XYZ_file)
+            if (init_output==-1):
+                file.write(session_dir+','+str(-1))
+                file.write("\n")
+                print('written')
+                continue
+            XYZ_array = init_output['XYZ_array']
+            kinect_inter_depth_list=init_output['kinect_inter_depth_list']
+            kinect_ts_list=init_output['kinect_ts_list']
+            XYZ_idx_list=init_output['XYZ_idx_list']
+            if plot_3d:
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.set_xlim(min(XYZ_array[:,0]), max(XYZ_array[:,0]))
+                ax.set_ylim(min(XYZ_array[:,1]), max(XYZ_array[:,1]))
+                ax.scatter(XYZ_array[:, 0], XYZ_array[:, 1], XYZ_array[:, 2])
+                ax.scatter(XYZ_array[0, 0], XYZ_array[0, 1], XYZ_array[0, 2], s=100, c='red')
+                # ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
+                # ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
+                ax.set_xlabel('X Axis')
+                ax.set_ylabel('Y Axis')
+                ax.set_zlabel('Z Axis')
+                plt.title('movement of the wrist in 3D space and plane detection')
+                plt.show()
+            output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list)
+            high_vals=output['high_vals']
+            low_vals=output['low_vals']
+            GT_depth=output['GT_depths']
+            depth_est=output['depths']
+            if plot_depth:
+                plt.plot(GT_depth)
+                plt.plot(depth_est)
+                plt.show()
+            error=np.mean(np.abs(GT_depth-depth_est))
+            print(f"The error is {error:.2f} mm")
+            file.write(session_dir+','+f"{error:.2f}")
+            file.write("\n")
+            print('written')
 
 #detect planes from data
 # plane1 = pyrsc.Plane()
@@ -159,23 +218,9 @@ XYZ_idx_list=init_output['XYZ_idx_list']
 # dists_valid=dists<threshold
 # XYZ_valid=XYZ_array[dists_valid]
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_xlim(min(XYZ_array[:,0]), max(XYZ_array[:,0]))
-ax.set_ylim(min(XYZ_array[:,1]), max(XYZ_array[:,1]))
-ax.scatter(XYZ_array[:, 0], XYZ_array[:, 1], XYZ_array[:, 2])
-ax.scatter(XYZ_array[0, 0], XYZ_array[0, 1], XYZ_array[0, 2], s=100, c='red')
-# ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
-# ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
-ax.set_xlabel('X Axis')
-ax.set_ylabel('Y Axis')
-ax.set_zlabel('Z Axis')
-plt.title('movement of the wrist in 3D space and plane detection')
-plt.show()
 
-output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list)
-high_vals=output['high_vals']
-low_vals=output['low_vals']
+
+
 #project points onto the plane
 # proj_points_high=np.array([project_point_to_plane(val, best_eq) for val in high_vals])
 # proj_points_low=np.array([project_point_to_plane(val, best_eq) for val in low_vals])
@@ -185,13 +230,7 @@ low_vals=output['low_vals']
 # plt.plot(depths)
 # plt.show()
 
-GT_depth=output['GT_depths']
-depth_est=output['depths']
-plt.plot(GT_depth)
-plt.plot(depth_est)
-plt.show()
-error=np.mean(np.abs(GT_depth-depth_est))
-print(f"The error is {error:.2f} mm")
+
 
 
 # fig = plt.figure()

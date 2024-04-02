@@ -109,8 +109,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Detect hands in images.')
     parser.add_argument('--root_dir', type=str, default=r'D:\canon_images', help='Root directory for image data')
     args = parser.parse_args()
-    
-    cannon(args.root_dir)
+
+    # cannon(args.root_dir)
+    main()
 
 
 #manually define bbs

@@ -42,35 +42,37 @@ def main():
     for subj_dir in subj_dirs:
         session_dirs=[os.path.join(subj_dir,session_dir) for session_dir in utils.list_subdirectories(subj_dir) if session_dir[0].lower()=='s']
         for session_dir in session_dirs:
-            if session_dir!=r'D:\CPR_extracted\P21\s_6':
-                continue
             print(session_dir)
             logging.info(f'{session_dir}')
-            hand_bb_path=os.path.join(session_dir,'hand_bbs.json')
+            hand_bb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
             if not os.path.exists(hand_bb_path):
                 print(f'{hand_bb_path} does not exist')
                 logging.info(f'{hand_bb_path} does not exist')
                 continue
             with open(hand_bb_path, 'r') as file:
                 data = json.load(file)
-            hand_mask_dir=os.path.join(session_dir,'hand_mask')
-            os.makedirs(hand_mask_dir,exist_ok=True)
+            hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
+            # if os.path.exists(hand_mask_dir):
+            #     print(f'{hand_mask_dir} exists, skipping')
+            #     continue
+            if not os.path.exists(hand_mask_dir):
+                os.makedirs(hand_mask_dir)  
 
-            img_files=utils.list_files(os.path.join(session_dir,'color'),'jpg')
+            img_files=utils.list_files(os.path.join(session_dir,'kinect','color'),'jpg')
             last_bbx=0
-            for img_file in img_files:
-                print(img_file)
+            for i,img_file in enumerate(img_files):
+                print(f'Processing {i}/{len(img_files)}',end='\r')
                 hand_mask_img_path=os.path.join(hand_mask_dir,os.path.splitext(img_file)[0]+'.png')
+                if os.path.exists(hand_mask_img_path):
+                    continue
                 bbx_str=data[img_file.split('.')[0]]
                 if bbx_str=="":
                     bbx=last_bbx
                 else:
                     bbx=[int(item) for item in bbx_str.split(',')]
                     last_bbx=bbx
-                if os.path.exists(hand_mask_img_path):
-                    continue
 
-                image_path = os.path.join(session_dir, 'color', img_file)
+                image_path = os.path.join(session_dir, 'kinect','color', img_file)
                 image = cv2.imread(image_path)
                 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 mask_predictor.set_image(image_rgb)

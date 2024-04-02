@@ -40,11 +40,11 @@ def get_kypt_XYZ(x,y,depth_file,hand_mask_file):
                 hand_mask=cv2.imread(hand_mask_file,cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
         else:
             hand_mask=hand_mask_file
-            valid_depth_mask=(valid_sensor_depth) & (hand_mask>0)
-            valid_args=np.argwhere(valid_depth_mask>0)
-            closest_arg=np.argmin(np.sum(np.abs(valid_args-np.array([y,x])),axis=1))
-            closest_xy=valid_args[closest_arg,:]
-            wrist_depth=depth_img[closest_xy[0],closest_xy[1]]
+        valid_depth_mask=(valid_sensor_depth) & (hand_mask>0)
+        valid_args=np.argwhere(valid_depth_mask>0)
+        closest_arg=np.argmin(np.sum(np.abs(valid_args-np.array([y,x])),axis=1))
+        closest_xy=valid_args[closest_arg,:]
+        wrist_depth=depth_img[closest_xy[0],closest_xy[1]]
     if not (wrist_depth>0 and wrist_depth<2000.0):
         print(f'Invalid depth value: {wrist_depth}')
         return -1
@@ -117,7 +117,7 @@ def sift_XYZ():
             with open(os.path.join(s,'kinect','hand_bbs.json'), 'r') as f:
                 hand_bbs = json.load(f)
             img_files=utils.list_files(img_path,'jpg')
-            
+
             n=0
             last_bb=-1
             keypoints_list=[]
@@ -265,10 +265,12 @@ def extract_3Dpts(model_name,method):
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            if not session_dir==r'D:\CPR_extracted\P0\s_2':
-                continue
-
+            # if session_dir!=r'D:\CPR_extracted\P16\s_1':
+            #     continue
             img_dir=os.path.join(session_dir,'kinect','color')
+            if not os.path.exists(img_dir):
+                print(f'{img_dir} does not exist. Continuing...')
+                continue
             depth_dir=os.path.join(session_dir,'kinect','depth')
             ts_file=os.path.join(session_dir,'kinect','kinect_ts.txt')
             hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
@@ -281,10 +283,10 @@ def extract_3Dpts(model_name,method):
                 print(XYZ_pt_file+' exists. Continuing')
                 continue
             print(session_dir)
-            with open(ts_file, 'r') as file:
-                # Read all lines into a list
-                ts_lines = file.readlines()
-            ts_list=np.array([float(line.strip()) for line in ts_lines])
+            # with open(ts_file, 'r') as file:
+            #     # Read all lines into a list
+            #     ts_lines = file.readlines()
+            # ts_list=np.array([float(line.strip()) for line in ts_lines])
             #read keypoint data
             if method=='wrist_kypt':
                 with open(os.path.join(session_dir,'kinect','wrist_keypts',f'hand_keypts_{model_name}.json'), 'r') as json_file:
@@ -296,6 +298,8 @@ def extract_3Dpts(model_name,method):
             
             for i,img in enumerate(img_list):
                 print(f'Processing {i}/{len(img_list)}',end='\r')
+                # if i==120:
+                #     print('here')
                 if img.endswith('.jpg'):
                     img_key=img.split('.')[0]
                     depth_file=os.path.join(depth_dir,img_key+'.png')
@@ -331,14 +335,14 @@ def extract_3Dpts(model_name,method):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="mmpose_finetuned_RHD2D", help="name of the model. mediapipe, mmpose_RHD2D, mmpose_onehand10k, mmpose_coco")
-    parser.add_argument("--method", type=str, default="mask", help="mask_centroid: use the centroid of the mask as the keypoint,\
+    parser.add_argument("--model", type=str, default="mediapipe", help="name of the model. mediapipe, mmpose_RHD2D, mmpose_onehand10k, mmpose_coco")
+    parser.add_argument("--method", type=str, default="wrist_kypt", help="mask_centroid: use the centroid of the mask as the keypoint,\
                         wrist_kypt: use the wrist keypoint as the keypoint")
     args = parser.parse_args()
     # mask_XYZ() 
-    # extract_3Dpts(args.model,args.method)
+    extract_3Dpts(args.model,args.method)
     # extract_all_hand_points()
-    sift_XYZ()
+    # sift_XYZ()
         
 # t=np.arange(0,len(XYZ_list))
 

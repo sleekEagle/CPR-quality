@@ -27,6 +27,9 @@ def plot_points(image,points):
 
 class WristDet_mediapipe:
     def __init__(self):
+        import mediapipe as mp
+        from mediapipe.tasks import python
+        from mediapipe.tasks.python import vision
         self.mp_hands = mp.solutions.hands
     
     def get_kypts(self,image):
@@ -104,13 +107,8 @@ def detect_object(path,obejct_name='person'):
 # path=r'D:\CPR_data_raw\P13\extracted\s_0\color\01319.jpg'
 # image,xy_vals=wrst.get_kypts(path)
 
-def detect_kypts_mp():
-    import mediapipe as mp
-    from mediapipe.tasks import python
-    from mediapipe.tasks.python import vision
-
+def detect_kypts_mp(root_dir):
     wrst=WristDet_mediapipe()
-    root_dir=r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images'
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
@@ -280,6 +278,8 @@ def detect_kypts_mmpose(model_name,root_dir):
             img_dir=os.path.join(session_dir,'kinect','color')
             img_files=utils.list_files(img_dir,'jpg')
             destination_directory=os.path.join(session_dir,'kinect','wrist_keypts')
+            if not os.path.exists(destination_directory):
+                os.makedirs(destination_directory)
             destination_file=os.path.join(destination_directory,f'hand_keypts_mmpose_{model_name}.json')
             if os.path.exists(destination_file):
                 print(f'{destination_file} exists. Continuing...')
@@ -361,7 +361,8 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default='finetuned_RHD2D', help='Path to data directory')
     args=parser.parse_args()
     
-    detect_kypts_mmpose(args.model_name,args.data_path)
+    # detect_kypts_mmpose(args.model_name,args.data_path)
+    detect_kypts_mp(args.data_path)
     # detec_keypoints_dir_mmpose(r'C:\Users\lahir\Downloads\cpr_data\test','RHD2D')
 
 
