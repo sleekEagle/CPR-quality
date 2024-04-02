@@ -10,5 +10,5 @@ kypt_transformer/*
 *.pth
 *.log
 *.html
-settings.json
+*.json
 outputs/*

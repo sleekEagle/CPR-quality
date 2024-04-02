@@ -23,4 +23,41 @@ config used:
 }
 
 
+#********how to record********
+1. copy azure_kinect_mkv_recorder.py into C:\Users\lahir\code\Open3D\examples\python\reconstruction_system\sensors
+2. copy config.json into the same dir 
+3. execute command 
+>python azure_kinect_recorder_my.py --align_depth_to_color --config config.json
+in the dir C:\Users\lahir\code\Open3D\examples\python\reconstruction_system\sensors
+4. press space to record and ESC to stop and save the video
+5. You can open the video with Azure kinect viewer. It did not work with VLC player
+
+#******how to extract images from the video******
+?
+
+
+#************************************************
+#*****record depth sensor************************
+________________pin arrangement____________
+VL6180                 Arduino Uno
+VIN                        5V
+GND                        GND
+SCL                        A5
+SDA                        A4
+
+further details, see guide at https://learn.adafruit.com/adafruit-vl6180x-time-of-flight-micro-lidar-distance-sensor-breakout/wiring-and-test
+
+set output location and port number in the code readserial.py
+run 
+python readserial.py
+
+#************************************************
+#************************************************
+
+
+
+
+
+
+
 
