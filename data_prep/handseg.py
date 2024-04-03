@@ -154,8 +154,8 @@ def main():
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("model", defauls='/p/blurdepth/models/sam_vit_h_4b8939.pth',help="Path to the model checkpoint file")
-    parser.add_argument("data", default='/p/blurdepth/data/canon_images/', help="Path to the data directory")
+    parser.add_argument("--model", default=r'/p/blurdepth/models/sam_vit_h_4b8939.pth',help="Path to the model checkpoint file")
+    parser.add_argument("--data", default=r'/p/blurdepth/data/canon_images/', help="Path to the data directory")
     args = parser.parse_args()
 
     cannon(args.data, args.model)
