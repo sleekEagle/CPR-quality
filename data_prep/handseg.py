@@ -14,6 +14,7 @@ from functools import reduce
 from scipy.ndimage.morphology import binary_fill_holes
 import sys
 import logging
+import argparse
 # Set up logging configuration
 logging.basicConfig(filename='output.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
@@ -151,10 +152,13 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    cannon(r'\\samba.cs.virginia.edu\p\blurdepth\data\canon_images',r'\\samba.cs.virginia.edu\p\blurdepth\models\sam_vit_h_4b8939.pth')
 
-        
+    parser = argparse.ArgumentParser()
+    parser.add_argument("model", defauls='/p/blurdepth/models/sam_vit_h_4b8939.pth',help="Path to the model checkpoint file")
+    parser.add_argument("data", default='/p/blurdepth/data/canon_images/', help="Path to the data directory")
+    args = parser.parse_args()
+
+    cannon(args.data, args.model)
 
 
 
