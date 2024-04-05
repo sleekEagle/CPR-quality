@@ -3,8 +3,9 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import utils
 import numpy as np
-
-data_path='D:\CPR_extracted\P1\s_5\smartwatch\smartwatch.txt'
+import hydra
+from omegaconf import DictConfig, OmegaConf
+import matplotlib.pyplot as plt
 
 def interpolate_array(array,ts,target_ts):
     _,n=array.shape
@@ -17,14 +18,13 @@ def interpolate_array(array,ts,target_ts):
     interp_list=np.array(interp_list).T
     return interp_list,out_ts[valid_out_ts]
 
+def extract_smartwatch_data(data_path,conf):
+    #Android sensor codes
+    TYPE_ACCELEROMETER=conf.smartwatch.TYPE_ACCELEROMETER
+    TYPE_GYROSCOPE=conf.smartwatch.TYPE_GYROSCOPE
+    TYPE_GRAVITY=conf.smartwatch.TYPE_GRAVITY
+    TARGET_FREQ=conf.smartwatch.TARGET_FREQ
 
-#Android sensor codes
-TYPE_ACCELEROMETER=1
-TYPE_GYROSCOPE=4
-TYPE_GRAVITY=9
-TARGET_FREQ=60
-
-def process():
     with open(data_path) as f:
         lines = f.readlines()
         lines = [line.strip() for line in lines]
@@ -96,7 +96,46 @@ def process():
         output['grav_interp']=grav_interp
         output['ts']=valid_out_ts
         return output,current_freq
+
+data_path='D:\CPR_extracted\P1\s_5\smartwatch\smartwatch.txt'
+gt_path=r'D:\CPR_extracted\P1\s_5'
+
+@hydra.main(version_base=None, config_path="../conf", config_name="config")
+def main(conf : DictConfig) -> None:
+    print(OmegaConf.to_yaml(conf))
+    output,original_freq=extract_smartwatch_data(data_path,conf)
+
+    # detect peaks and valleys
+    mag=np.sqrt(np.square(output['acc_interp']).sum(axis=1))
+    idx=np.arange(len(mag))/len(mag)
+    #interpolate
+    mag_interp=utils.interpolate_between_ts(mag,idx,idx,fit_window=30,deg=2)
+
+    #detect peaks
+    peaks,valleys=utils.find_peaks_and_valleys(mag_interp,distance=20,plot=True)
+
+    #read GT depth sensor data
+    depth_vals=np.array(utils.read_allnum_lines(os.path.join(gt_path,'depth_sensor.txt')))
+    depth_ts=np.array(utils.read_allnum_lines(os.path.join(gt_path,'depth_sensor_ts.txt')))
+    ts=output['ts']
+    valid = (depth_ts > ts[0]) & (depth_ts < ts[-1])
+    depth_ts=depth_ts[valid]
+    depth_vals=depth_vals[valid]
+
+
     
-if __name__ == "__main__":
-    output,original_freq=process()
+
+    plt.plot(depth_vals)
+    plt.plot(mag_interp)
+    plt.show()
+
+
+
+
+
+
+
     pass
+
+if __name__ == "__main__":
+    main()
