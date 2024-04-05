@@ -265,8 +265,8 @@ def extract_3Dpts(model_name,method):
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            # if session_dir!=r'D:\CPR_extracted\P16\s_1':
-            #     continue
+            if session_dir!=r'D:\CPR_extracted\P10\s_5':
+                continue
             img_dir=os.path.join(session_dir,'kinect','color')
             if not os.path.exists(img_dir):
                 print(f'{img_dir} does not exist. Continuing...')
@@ -335,7 +335,7 @@ def extract_3Dpts(model_name,method):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="mediapipe", help="name of the model. mediapipe, mmpose_RHD2D, mmpose_onehand10k, mmpose_coco")
+    parser.add_argument("--model", type=str, default="tracking", help="name of the model. mediapipe, mmpose_RHD2D, mmpose_onehand10k, tracking: use opencv optical flow-based tracking")
     parser.add_argument("--method", type=str, default="wrist_kypt", help="mask_centroid: use the centroid of the mask as the keypoint,\
                         wrist_kypt: use the wrist keypoint as the keypoint")
     args = parser.parse_args()

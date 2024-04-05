@@ -6,8 +6,8 @@ import numpy as np
 import sys
 import argparse
 
-def show_video(dir_path,show_kypts,bb):
-    keypt_file=os.path.join(dir_path,'kinect','wrist_keypts','hand_keypts_mmpose_finetuned_RHD2D.json')
+def show_video(dir_path,show_kypts,bb,model):
+    keypt_file=os.path.join(dir_path,'kinect','wrist_keypts',f'hand_keypts_{model}.json')
     img_dir=os.path.join(dir_path,'kinect','color')
     imgs=utils.get_files_with_str(img_dir,'.jpg')
     if show_kypts:
@@ -53,9 +53,10 @@ if __name__ == "__main__":
     parser.add_argument("-s", type=str, default="s_2", help="Path to session directory")
     parser.add_argument("--kypts", type=bool, default=True, help="Should kypts be displayed")
     parser.add_argument("--bb", type=bool, default=True, help="Should bounding bx be displayed")
+    parser.add_argument("--kypt_model", type=str, default="mmpose_finetuned_RHD2D", help="model name used for keypoint detection. mmpose_finetuned_RHD2D, mediapipe, tracking")
 
     args = parser.parse_args()
 
     dir_path=os.path.join(args.root_dir,args.p,args.s)  
 
-    show_video(dir_path,args.kypts,args.bb)
+    show_video(dir_path,args.kypts,args.bb,args.kypt_model)

@@ -58,7 +58,26 @@ def read_XYZ(path,XYZ_file):
         XYZ_idx_list.append(i) 
     
     XYZ_array=np.array(XYZ_list)
+    
 
+    # Detect outliers of depths based on median for depth
+    depths=XYZ_array[:,2]
+    median_depth = np.median(depths)
+    median_absolute_deviation = np.median(np.abs(depths - median_depth))
+    threshold = 1.5 * median_absolute_deviation
+    outliers = np.abs(depths - median_depth) > threshold
+
+    filtered_depths = depths[~outliers]
+    outlier_args=np.argwhere(outliers)
+    valid_args=np.argwhere(~outliers)
+    all_args=np.arange(len(depths))
+    out_ts,valid_out_ts,depth_int=utils.interpolate_between_ts_cube(depths[valid_args][:,0],valid_args[:,0],all_args,plot=False)
+
+    #remove invalid values from data
+    XYZ_array=XYZ_array[valid_out_ts,:]
+    XYZ_idx_list=np.array(XYZ_idx_list)
+    XYZ_idx_list=XYZ_idx_list[valid_out_ts]
+    XYZ_array[:,2]=depth_int    
 
     output={}
     output['XYZ_array']=XYZ_array
@@ -142,10 +161,10 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot
     return output
 
 
-plot_3d=False
-plot_depth=False
+plot_3d=True
+plot_depth=True
 root_dir=r'D:\CPR_extracted'
-method='mediapipe'
+method='tracking'   #'mediapipe' or 'mmpose_finetuned_RHD2D'
 XYZ_file=f'hand_keypts_{method}_XYZ.json'
 output_file=f'performance_{method}.txt'
 output_file=os.path.join(root_dir,output_file)
@@ -155,7 +174,8 @@ with open(output_file, 'a') as file:
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            # if session_dir==r'D:\CPR_extracted\P9\s_8':
+            if session_dir!=r'D:\CPR_extracted\P10\s_5':
+                continue
             print(session_dir)
             path=os.path.join(session_dir,'kinect')
             if not os.path.exists(path):
@@ -187,7 +207,7 @@ with open(output_file, 'a') as file:
                 ax.set_zlabel('Z Axis')
                 plt.title('movement of the wrist in 3D space and plane detection')
                 plt.show()
-            output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list)
+            output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot=False)
             high_vals=output['high_vals']
             low_vals=output['low_vals']
             GT_depth=output['GT_depths']

@@ -201,18 +201,51 @@ def plot_points(image,points):
         cv2.circle(image, point, 5, (0, 255, 0), -1) 
     return image
 
-def show_img(image):
+
+def show_img(image,show_coords=False):
     import cv2
+    window_name='image'
+    # Define the mouse callback function
+    if show_coords:
+        def show_coordinates(event, x, y, flags, param):
+            # Check for mouse movement
+            if event == cv2.EVENT_MOUSEMOVE:
+                # Update the window title to show the coordinates
+                coordinates = f'Coordinates: X={x}, Y={y}'
+                cv2.setWindowTitle(window_name, coordinates)
+
     # Check if the image was successfully loaded
     if image is not None:
-        # Display the image
-        cv2.imshow('Image', image)
+        if show_coords:
+            cv2.namedWindow(window_name)
+            cv2.setMouseCallback(window_name, show_coordinates)
+        cv2.imshow(window_name, image)
 
         # Wait for a key press and then close the window
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
         print("Failed to load the image.")
+
+def select_points(image):
+    import cv2
+    # Function to handle mouse clicks
+    def click_event(event, x, y, flags, param):
+        # Check if the event is a left mouse click
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Optionally, you can mark the clicked point and display it
+            cv2.circle(image, (x, y), radius=5, color=(0, 255, 0), thickness=-1)
+            cv2.imshow("image", image)
+            global coordinates
+            coordinates = (x, y)
+            print(f'coordinates: {coordinates}')
+
+    cv2.imshow("image", image)
+    cv2.setMouseCallback("image", click_event)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return coordinates
+
 
 #crop an image given a bounding box and padding
 def crop_img_bb(img,hand_bb,pad):

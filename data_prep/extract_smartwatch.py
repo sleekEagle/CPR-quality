@@ -171,10 +171,9 @@ def interpolate_smartwatch_data():
             out_path=os.path.join(sess_dir, 'smartwatch',f'smartwatch_interp_{TARGET_FREQ}Hz.txt')
             np.savetxt(out_path,data)
 
-interpolate_smartwatch_data()
 
-# plt.plot(acc_ts_new,acc_list[:,2])
-# plt.plot(target_ts[:,0],acc_interp[:,2])
+
+extract_data()
 
 
 

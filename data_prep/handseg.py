@@ -113,7 +113,7 @@ def main():
             if not os.path.exists(hand_bb_path):
                 print(f'{hand_bb_path} does not exist')
                 logging.info(f'{hand_bb_path} does not exist')
-                continue
+                # continue
             with open(hand_bb_path, 'r') as file:
                 data = json.load(file)
             hand_mask_dir=os.path.join(session_dir,'kinect','hand_mask')
@@ -158,7 +158,8 @@ if __name__ == "__main__":
     parser.add_argument("--data", default=r'/p/blurdepth/data/canon_images/', help="Path to the data directory")
     args = parser.parse_args()
 
-    cannon(args.data, args.model)
+    # cannon(args.data, args.model)
+    main()
 
 
 
