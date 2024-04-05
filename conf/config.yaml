@@ -1,4 +1,10 @@
-db:
-  driver: mysql
-  user: omry
-  pass: secret
+smartwatch:
+  #Android sensor codes
+  TYPE_ACCELEROMETER: 1
+  TYPE_GYROSCOPE: 4
+  TYPE_GRAVITY: 9
+  TARGET_FREQ: 60
+
+
+
+

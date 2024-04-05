@@ -254,10 +254,18 @@ def crop_img_bb(img,hand_bb,pad):
     return img_crop
 
 #find peaks and valleys in a 1D signal
-def find_peaks_and_valleys(signal, distance=10):
+def find_peaks_and_valleys(signal, distance=10,plot=False):
     from scipy.signal import find_peaks
     peaks, _ = find_peaks(signal, distance=distance)
     valleys, _ = find_peaks(-signal, distance=distance)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.plot(signal)
+        plt.scatter(peaks, signal[peaks], c='r', label='Peaks')
+        plt.scatter(valleys, signal[valleys], c='g', label='Valleys')
+        plt.legend()
+        plt.show()
     return peaks, valleys
 
 
