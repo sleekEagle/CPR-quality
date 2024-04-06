@@ -267,8 +267,8 @@ def detect_kypts_mmpose(model_name,root_dir):
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
-            if session_dir!=r'D:\CPR_extracted\P10\s_5':
-                continue
+            # if session_dir!=r'D:\CPR_extracted\P10\s_5':
+            #     continue
             print(session_dir)
             handbb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
             if os.path.exists(handbb_path):
@@ -318,7 +318,7 @@ def detect_kypts_mmpose(model_name,root_dir):
                         y_vals=[val[1]+hand_bb[1]-pad for val in kypts]
                     elif model_name=='tracking':
                         gray=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                        if i%3==0:
+                        if i==0:
                             gray0=gray
                             p=utils.select_points(gray)
                             point = np.array([[p[:2]]], dtype=np.float32)

@@ -97,45 +97,131 @@ def extract_smartwatch_data(data_path,conf):
         output['ts']=valid_out_ts
         return output,current_freq
 
-data_path='D:\CPR_extracted\P1\s_5\smartwatch\smartwatch.txt'
-gt_path=r'D:\CPR_extracted\P1\s_5'
+data_path='D:\CPR_extracted\P1\s_4\smartwatch\smartwatch.txt'
+gt_path=r'D:\CPR_extracted\P1\s_4' 
+
+
+def moving_normalize(signal, window_size):
+    # Initialize the normalized signal with zeros
+    normalized_signal = np.zeros(signal.shape)
+    
+    # Calculate the half window size for indexing
+    half_window = window_size // 2
+    
+    for i in range(len(signal)):
+        # Determine the start and end of the window
+        start = max(i - half_window, 0)
+        end = min(i + half_window + 1, len(signal))
+        
+        # Calculate local mean and standard deviation
+        local_mean = np.mean(signal[start:end])
+        local_std = np.std(signal[start:end])
+        
+        # Normalize the current value
+        if local_std > 0:  # Avoid division by zero
+            normalized_signal[i] = (signal[i] - local_mean) / local_std
+        else:
+            normalized_signal[i] = signal[i] - local_mean
+    
+    return normalized_signal
+
+root_dir=r'D:\CPR_extracted'
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(conf : DictConfig) -> None:
     print(OmegaConf.to_yaml(conf))
-    output,original_freq=extract_smartwatch_data(data_path,conf)
 
-    # detect peaks and valleys
-    mag=np.sqrt(np.square(output['acc_interp']).sum(axis=1))
-    idx=np.arange(len(mag))/len(mag)
-    #interpolate
-    mag_interp=utils.interpolate_between_ts(mag,idx,idx,fit_window=30,deg=2)
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            # print(f'Processing {session_dir}')
+            # if session_dir!=r'D:\CPR_extracted\P12\s_11':
+            #     continue
+            data_path=os.path.join(session_dir,'smartwatch','smartwatch.txt')
+            if not os.path.exists(data_path):
+                print(f'{data_path} does not exist. Continuing...')
+                continue
+            output,original_freq=extract_smartwatch_data(data_path,conf)
 
-    #detect peaks
-    peaks,valleys=utils.find_peaks_and_valleys(mag_interp,distance=20,plot=True)
+            # detect peaks and valleys
+            prominant_axis=np.argmax(np.std(output['acc_interp'],axis=0))
+            mag=np.sqrt(np.square(output['acc_interp'][:,prominant_axis]))
+            idx=np.arange(len(mag))/len(mag)
+            #interpolate
+            mag_interp=utils.interpolate_between_ts(mag,idx,idx,fit_window=100,deg=2)
+            # plt.plot(mag)
+            # plt.plot(mag_interp)
 
-    #read GT depth sensor data
-    depth_vals=np.array(utils.read_allnum_lines(os.path.join(gt_path,'depth_sensor.txt')))
-    depth_ts=np.array(utils.read_allnum_lines(os.path.join(gt_path,'depth_sensor_ts.txt')))
-    ts=output['ts']
-    valid = (depth_ts > ts[0]) & (depth_ts < ts[-1])
-    depth_ts=depth_ts[valid]
-    depth_vals=depth_vals[valid]
+            #detect peaks
+            pred_peaks,pred_valleys=utils.find_peaks_and_valleys(mag_interp,distance=30,plot=False)
+            #get CPR peaks and vallyes
+            # cpr_peaks=[int((peaks[peaks>idx][0]+idx)*0.5) for idx in valleys if idx<=peaks[-1]]
+            # cpr_vallyes=[int((valleys[valleys>idx][0]+idx)*0.5) for idx in peaks if idx<=valleys[-1]]
 
+            #calc frequency
+            t=(output['ts'][-1]-output['ts'][0])/60
+            cpr_freq_est=len(pred_peaks)/t
 
+            # plt.plot(mag_interp)
+            # plt.plot(cpr_peaks, mag_interp[cpr_peaks], "x")
+            # plt.plot(cpr_vallyes, mag_interp[cpr_vallyes], "o")
+            # plt.show()
+
+            if conf.smartwatch.eval:
+                #read GT depth sensor data
+                depth_vals=np.array(utils.read_allnum_lines(os.path.join(session_dir,'depth_sensor.txt')))
+                depth_ts=np.array(utils.read_allnum_lines(os.path.join(session_dir,'depth_sensor_ts.txt')))
+                ts=output['ts']
+                valid = (depth_ts > ts[0]) & (depth_ts < ts[-1])
+                depth_ts=depth_ts[valid]
+                depth_vals=depth_vals[valid]
+                if conf.smartwatch.plot_data:
+                    plt.plot(depth_ts,depth_vals)
+                    plt.plot(ts,mag_interp)
+                    plt.plot(ts[pred_peaks], mag_interp[pred_peaks], "x")
+                    plt.plot(ts[pred_valleys], mag_interp[pred_valleys], "x")
+                    plt.show()
+
+                #evaluate
+                idx=np.arange(len(depth_vals))/len(depth_vals)
+                if np.isnan(depth_vals).any():
+                    print(f'Nan values in depth sensor data. Skipping...')
+                    continue
+                depth_vals_interp=utils.interpolate_between_ts(depth_vals,idx,idx,fit_window=20,deg=2)
+                #running normalize 
+                window_size = 100
+                depth_vals_norm=moving_normalize(depth_vals_interp, window_size)
+                # plt.plot(depth_vals_interp)
+                # plt.plot(depth_vals_norm)
+
+                GT_peaks,GT_valleys=utils.find_peaks_and_valleys(depth_vals_norm,distance=7,plot=conf.smartwatch.plot_data)
+
+                # plt.plot(depth_vals)
+                plt.plot(depth_vals_norm)
+                plt.plot(GT_peaks,depth_vals_norm[GT_peaks], "x")
+                plt.plot(GT_valleys,depth_vals_norm[GT_valleys], "x")
+                plt.show()
+
+                #calc freq
+                t=(depth_ts[-1]-depth_ts[0])/60
+                cpr_freq_GT=len(GT_peaks)/t
+
+                freq_error=abs(cpr_freq_GT-cpr_freq_est)
+                print(f'session_dir: {session_dir}. fequency error: {freq_error:.2f} Hz')
+
+                # print(f'Estimated CPR frequency: {cpr_freq_est:.2f} Hz. GT CPR frequency: {cpr_freq_GT:.2f} Hz')
+
+                # GT_peak_ts,GT_valleys_ts=depth_ts[GT_peaks],depth_ts[GT_valleys]
+                # pred_peak_ts,pred_valleys_ts=output['ts'][cpr_peaks],output['ts'][cpr_vallyes]
+
+                # peak_error=np.mean([min(abs(GT_peak_ts-pred)) for pred in pred_peak_ts])
+                # valley_error=np.mean([min(abs(GT_valleys_ts-pred)) for pred in pred_valleys_ts])
+                # avg_error=(peak_error+valley_error)*0.5*1000
+                # print(f'average salient point error : {avg_error:.2f} ms')
     
 
-    plt.plot(depth_vals)
-    plt.plot(mag_interp)
-    plt.show()
 
-
-
-
-
-
-
-    pass
 
 if __name__ == "__main__":
     main()

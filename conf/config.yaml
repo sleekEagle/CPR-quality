@@ -4,6 +4,8 @@ smartwatch:
   TYPE_GYROSCOPE: 4
   TYPE_GRAVITY: 9
   TARGET_FREQ: 60
+  eval: True
+  plot_data: False
 
 
 

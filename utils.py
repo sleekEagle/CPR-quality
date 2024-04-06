@@ -163,7 +163,11 @@ def interpolate_between_ts_cube(signal,in_ts,out_ts,plot=False):
     out_ts=out_ts[valid_out_ts]
     in_ts_norm=in_ts-start_ts
     out_ts_norm=out_ts-start_ts
-    spl=CubicSpline(in_ts_norm,signal)
+    #remove duplicate or wrong timestamps
+    valid_idx=np.diff(in_ts_norm)>0
+    if in_ts_norm[-1]>in_ts_norm[-2]:
+        valid_idx=np.concatenate((valid_idx,[True]))
+    spl=CubicSpline(in_ts_norm[valid_idx],signal[valid_idx])
     pred=spl(out_ts_norm)
     if plot:
         import matplotlib.pyplot as plt
@@ -254,10 +258,11 @@ def crop_img_bb(img,hand_bb,pad):
     return img_crop
 
 #find peaks and valleys in a 1D signal
-def find_peaks_and_valleys(signal, distance=10,plot=False):
+#signal must be normalized in [-1,+1] in a moving manner
+def find_peaks_and_valleys(signal, distance=10,height=-0.2,plot=False):
     from scipy.signal import find_peaks
-    peaks, _ = find_peaks(signal, distance=distance)
-    valleys, _ = find_peaks(-signal, distance=distance)
+    peaks, _ = find_peaks(signal, distance=distance,height=height)
+    valleys, _ = find_peaks(-signal, distance=distance,height=height)
 
     if plot:
         import matplotlib.pyplot as plt
