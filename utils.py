@@ -257,12 +257,37 @@ def crop_img_bb(img,hand_bb,pad):
     img_crop=img[max(0,hand_bb[1]-pad):min(h,hand_bb[3]+pad),max(0,hand_bb[0]-pad):min(w,hand_bb[2]+pad)]
     return img_crop
 
+
+def moving_normalize(signal, window_size):
+    # Initialize the normalized signal with zeros
+    normalized_signal = np.zeros(signal.shape)
+    
+    # Calculate the half window size for indexing
+    half_window = window_size // 2
+    
+    for i in range(len(signal)):
+        # Determine the start and end of the window
+        start = max(i - half_window, 0)
+        end = min(i + half_window + 1, len(signal))
+        
+        # Calculate local mean and standard deviation
+        local_mean = np.mean(signal[start:end])
+        local_std = np.std(signal[start:end])
+        
+        # Normalize the current value
+        if local_std > 0:  # Avoid division by zero
+            normalized_signal[i] = (signal[i] - local_mean) / local_std
+        else:
+            normalized_signal[i] = signal[i] - local_mean
+    
+    return normalized_signal
+
 #find peaks and valleys in a 1D signal
 #signal must be normalized in [-1,+1] in a moving manner
-def find_peaks_and_valleys(signal, distance=10,height=-0.2,plot=False):
+def find_peaks_and_valleys(signal, distance=10,height=0.2,prominence=(None, None),plot=False):
     from scipy.signal import find_peaks
-    peaks, _ = find_peaks(signal, distance=distance,height=height)
-    valleys, _ = find_peaks(-signal, distance=distance,height=height)
+    peaks, p_properties  = find_peaks(signal, distance=distance,height=height,prominence=prominence)
+    valleys, v_properties = find_peaks(-signal, distance=distance,height=height,prominence=prominence)
 
     if plot:
         import matplotlib.pyplot as plt
@@ -271,7 +296,24 @@ def find_peaks_and_valleys(signal, distance=10,height=-0.2,plot=False):
         plt.scatter(valleys, signal[valleys], c='g', label='Valleys')
         plt.legend()
         plt.show()
-    return peaks, valleys
+    best_idx=-1
+    if len(peaks)>1:
+        best_idx=np.argmax([p_properties['prominences'].mean(),v_properties['prominences'].mean()])
+    return peaks, valleys,best_idx
+
+#get dominantt freq in Hz
+def get_dominant_freq(signal,sample_freq):
+    valid_cpr_freq=np.array([10,300])/60
+    
+    fft_values = np.abs(np.fft.fft(signal))
+    freq_bins = np.fft.fftfreq(len(signal), 1/sample_freq)
+    valid_idx=np.argwhere((freq_bins>=valid_cpr_freq[0]) & (freq_bins<=valid_cpr_freq[1]))[:,0]
+    fft_values=fft_values[valid_idx]
+    freq_bins=freq_bins[valid_idx]
+    peak,_,_=find_peaks_and_valleys(fft_values,distance=len(fft_values),plot=False)
+    dom_freq_est=freq_bins[peak]
+    return dom_freq_est
+
 
 
 #************************************************************
