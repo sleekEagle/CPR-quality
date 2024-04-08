@@ -175,7 +175,7 @@ def interpolate_smartwatch_data():
 def create_dataset(conf : DictConfig) -> None:
     print(OmegaConf.to_yaml(conf))
 
-    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    subj_dirs=utils.get_dirs_with_str(conf.data_root, 'P')
     gt_data,sw_data=[],[]
     depth_data,n_comp_data=[],[]
     part_data=[]
