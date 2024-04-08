@@ -55,6 +55,7 @@ class SWNET(nn.Module):
         self.drop_out = nn.Dropout()
         self.fc_n = nn.Linear(64 * 3, 1)
         self.fc_depth = nn.Linear(64 * 3, 1)
+        self.sigmoid = nn.Sigmoid() 
 
     def forward(self, x):
         out1 = self.l1_1(x)
@@ -74,6 +75,6 @@ class SWNET(nn.Module):
 
         #classification
         out = self.drop_out(out)
-        pred_n = self.fc_n(out)
-        pred_depth = self.fc_depth(out)
+        pred_n = self.sigmoid(self.fc_n(out))
+        pred_depth = self.sigmoid(self.fc_depth(out))
         return pred_n.squeeze(), pred_depth.squeeze()
