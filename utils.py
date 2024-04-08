@@ -301,6 +301,9 @@ def find_peaks_and_valleys(signal, distance=10,height=0.2,prominence=(None, None
         best_idx=np.argmax([p_properties['prominences'].mean(),v_properties['prominences'].mean()])
     return peaks, valleys,best_idx
 
+def moving_average(x, window_size):
+    return np.convolve(x, np.ones(window_size)/window_size, mode='valid')
+
 #get dominantt freq in Hz
 def get_dominant_freq(signal,sample_freq):
     valid_cpr_freq=np.array([10,300])/60
@@ -310,9 +313,45 @@ def get_dominant_freq(signal,sample_freq):
     valid_idx=np.argwhere((freq_bins>=valid_cpr_freq[0]) & (freq_bins<=valid_cpr_freq[1]))[:,0]
     fft_values=fft_values[valid_idx]
     freq_bins=freq_bins[valid_idx]
-    peak,_,_=find_peaks_and_valleys(fft_values,distance=len(fft_values),plot=False)
-    dom_freq_est=freq_bins[peak]
-    return dom_freq_est
+
+    # find_peaks_and_valleys(fft_values,distance=1,plot=True)
+
+    # detect outliers
+    #normalize
+    fft_norm=(fft_values-np.mean(fft_values))/(np.max(fft_values)-np.min(fft_values))
+    outliers=fft_norm>0.4
+
+    # median = np.median(fft_values)
+    # outliers = np.abs(fft_values - median) > 3 * np.std(fft_values)
+    #select first 2 peaks
+    args=[]
+    first_detected=False
+    detected_idx=-1
+    for i in range(len(outliers)):
+        if first_detected and i>detected_idx+2:
+            break
+        if outliers[i]:
+            args.append(i)
+            if not first_detected:
+                first_detected=True
+                detected_idx=i
+                continue
+            
+    dom_freq=np.mean(freq_bins[args])
+
+    # dom_freq_est=freq_bins[1:][np.argmax(fft_values[1:])]
+    #get top n freqs
+    # sorted_args=np.argsort(-fft_values[1:])
+    # fft_values=fft_values[1:][sorted_args]
+    # freq_bins=freq_bins[1:][sorted_args]
+    # sort_args = np.argsort(-fft_values)
+    # sort_fft_vals=fft_values[sort_args]
+    # sort_freq_bins=freq_bins[sort_args]
+
+    # peak=np.argmax(fft_values[1:])+1
+    # # peak,_,_=find_peaks_and_valleys(fft_values,distance=len(fft_values),plot=False)
+    # dom_freq_est=freq_bins[peak]
+    return dom_freq
 
 
 
