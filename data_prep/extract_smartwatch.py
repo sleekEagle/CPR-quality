@@ -177,6 +177,7 @@ def create_dataset(conf : DictConfig) -> None:
 
     subj_dirs=utils.get_dirs_with_str(conf.data_root, 'P')
     gt_data,sw_data=[],[]
+    gt_peak_data,gt_valley_data=[],[]
     depth_data,n_comp_data=[],[]
     part_data=[]
 
@@ -252,23 +253,32 @@ def create_dataset(conf : DictConfig) -> None:
                 depth_data.append(depth)
                 n_comp_data.append(n_cmp)
                 part_data.append(part)
-    
+
+                peak_array=np.zeros(gt_window.shape[0])
+                peak_array[GT_peaks_window]=1
+                gt_peak_data.append(peak_array)
+                valley_array=np.zeros(gt_window.shape[0])
+                valley_array[GT_valleys_window]=1
+                gt_valley_data.append(valley_array)
+
     #write data to file
     gt_data=np.array(gt_data)
     sw_data=np.array(sw_data)
     depth_data=np.array(depth_data)
     n_comp_data=np.array(n_comp_data)
     part_data=np.array(part_data)
+    gt_peak_data=np.array(gt_peak_data)
+    gt_valley_data=np.array(gt_valley_data)
 
-    out_dir=os.path.join(root_dir,'smartwatch_dataset')
+    out_dir=os.path.join(conf.data_root,'smartwatch_dataset')
     os.makedirs(out_dir,exist_ok=True)
     np.save(os.path.join(out_dir,'gt_data'), gt_data)
     np.save(os.path.join(out_dir,'sw_data'), sw_data)
     np.save(os.path.join(out_dir,'depth_data'), depth_data)
     np.save(os.path.join(out_dir,'n_comp_data'), n_comp_data)
     np.save(os.path.join(out_dir,'part_data'), part_data)
-
-    np.load(os.path.join(out_dir,'gt_data.npy'))
+    np.save(os.path.join(out_dir,'gt_peak_data'), gt_peak_data)
+    np.save(os.path.join(out_dir,'gt_valley_data'), gt_valley_data)
 
 
 if __name__ == "__main__":
