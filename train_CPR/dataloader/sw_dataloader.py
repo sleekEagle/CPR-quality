@@ -11,14 +11,13 @@ import json
 # Define your custom dataset class
 class SW_dataset(Dataset):
     def __init__(self, conf,mode):
-
-        sw_min=[-80.35959311142295,-79.25364161478956,-80.35959311142295,-80.35959311142295,-79.25364161478956,-80.35959311142295,-80.35959311142295,-79.25364161478956,-80.35959311142295]
-        sw_max=[80.22816855691997,78.6352995737251,80.22816855691997,80.22816855691997,78.6352995737251,80.22816855691997,80.22816855691997,78.6352995737251,80.22816855691997]
-        depth_min=8.0
-        depth_max=61
-        n_comp_min=3.0
-        n_comp_max=36.0
-
+        sw_min= conf.smartwatch.sw_min
+        sw_max= conf.smartwatch.sw_max
+        depth_min= conf.smartwatch.depth_min
+        depth_max= conf.smartwatch.depth_max
+        n_comp_min= conf.smartwatch.n_comp_min
+        n_comp_max= conf.smartwatch.n_comp_max
+        
         self.data_root = conf.data_root
         if mode=='train': self.part=conf.smartwatch.train_part
         elif mode=='test': self.part=conf.smartwatch.test_part

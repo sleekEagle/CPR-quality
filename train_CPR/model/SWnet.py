@@ -67,10 +67,6 @@ class SWNET(nn.Module):
         out3 = self.l3_1(x)
         out3 = self.l3_2(out3).mean(dim=2)
 
-        print('out1:', out1.shape)
-        print('out2:', out2.shape)
-        print('out3:', out3.shape)
-
         out = torch.cat((out1, out2, out3), dim=1)
 
         #classification
