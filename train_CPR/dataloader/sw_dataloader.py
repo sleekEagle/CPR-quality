@@ -46,7 +46,8 @@ class SW_dataset(Dataset):
 
     def __getitem__(self, idx):
         sw_data=self.sw_data[idx,:,:]
-        sw_data = np.reshape(sw_data,(9,300))
+        _,w=sw_data.shape
+        sw_data = np.reshape(sw_data,(9,w))
         gt_depth=self.gt_depth[idx]
         gt_n_comp=self.gt_n_comp[idx]
         return sw_data, gt_depth, gt_n_comp

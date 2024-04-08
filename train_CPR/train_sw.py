@@ -11,9 +11,12 @@ def main(conf):
         dataloader.get_data_stats(conf)
         return 1
     
+    model=SWNET(conf)
     train_dataloader, test_dataloader = dataloader.get_dataloaders(conf)
     for batch in train_dataloader:
         sw_data, gt_depth, gt_n_comp=batch
+        pred_n, pred_depth=model(sw_data.float())
+
         pass
         
 if __name__ == "__main__":
