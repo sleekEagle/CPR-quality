@@ -5,7 +5,7 @@ class SWNET(nn.Module):
     def __init__(self):
         super(SWNET, self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv1d(in_channels=1, out_channels=32, kernel_size=5, stride=1, padding=2),
+            nn.Conv1d(in_channels=9, out_channels=32, kernel_size=5, stride=1, padding=2),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2)
         )

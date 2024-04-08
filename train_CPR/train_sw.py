@@ -12,6 +12,9 @@ def main(conf):
         return 1
     
     train_dataloader, test_dataloader = dataloader.get_dataloaders(conf)
+    for batch in train_dataloader:
+        sw_data, gt_depth, gt_n_comp=batch
+        pass
         
 if __name__ == "__main__":
     main()

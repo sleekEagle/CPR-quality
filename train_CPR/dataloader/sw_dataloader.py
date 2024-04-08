@@ -11,6 +11,14 @@ import json
 # Define your custom dataset class
 class SW_dataset(Dataset):
     def __init__(self, conf,mode):
+
+        sw_min=[-80.35959311142295,-79.25364161478956,-80.35959311142295,-80.35959311142295,-79.25364161478956,-80.35959311142295,-80.35959311142295,-79.25364161478956,-80.35959311142295]
+        sw_max=[80.22816855691997,78.6352995737251,80.22816855691997,80.22816855691997,78.6352995737251,80.22816855691997,80.22816855691997,78.6352995737251,80.22816855691997]
+        depth_min=8.0
+        depth_max=61
+        n_comp_min=3.0
+        n_comp_max=36.0
+
         self.data_root = conf.data_root
         if mode=='train': self.part=conf.smartwatch.train_part
         elif mode=='test': self.part=conf.smartwatch.test_part
@@ -19,9 +27,19 @@ class SW_dataset(Dataset):
         valid_args = np.argwhere(np.isin(part_data, self.part))
         # gt_data=np.load(os.path.join(data_path,'gt_data.npy'))[valid_args,:]
         self.gt_depth=np.load(os.path.join(data_path,'depth_data.npy'))[valid_args]
-        self.sw_data=np.load(os.path.join(data_path,'sw_data.npy'))[valid_args,:,:,:].squeeze()
+        sw_data=np.load(os.path.join(data_path,'sw_data.npy'))[valid_args,:,:,:].squeeze()
+        l,_,w,_=sw_data.shape
+        self.sw_data=np.reshape(sw_data,(l,9,w))
         self.gt_n_comp=np.load(os.path.join(data_path,'n_comp_data.npy'))[valid_args].squeeze()
         self.len=len(valid_args)
+
+        #normalize data
+        if conf.smartwatch.normalize:
+            sw_min_ar=np.expand_dims(np.expand_dims(np.array(sw_min),0),2).repeat(l,axis=0).repeat(w,axis=2)
+            sw_max_ar=np.expand_dims(np.expand_dims(np.array(sw_max),0),2).repeat(l,axis=0).repeat(w,axis=2)
+            self.sw_data=(self.sw_data-sw_min_ar)/(sw_max_ar-sw_min_ar)
+            self.gt_depth=(self.gt_depth-depth_min)/(depth_max-depth_min)
+            self.gt_n_comp=(self.gt_n_comp-n_comp_min)/(n_comp_max-n_comp_min)
 
     def __len__(self):
         return self.len
