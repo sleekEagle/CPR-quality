@@ -7,18 +7,11 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import matplotlib.pyplot as plt
 
-
-
-    
-root_dir=r'D:\CPR_extracted'
-
-
-
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def detect_peaks(conf : DictConfig) -> None:
     print(OmegaConf.to_yaml(conf))
 
-    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    subj_dirs=utils.get_dirs_with_str(conf.root_dir, 'P')
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
@@ -29,7 +22,7 @@ def detect_peaks(conf : DictConfig) -> None:
             if not os.path.exists(data_path):
                 print(f'{data_path} does not exist. Continuing...')
                 continue
-            output,original_freq=extract_smartwatch_data(data_path,conf)
+            output,original_freq=utils.extract_smartwatch_data(data_path,conf)
             #read GT depth sensor data
             depth_vals=np.array(utils.read_allnum_lines(os.path.join(session_dir,'depth_sensor.txt')))
             #read GT depth sensor data
@@ -64,7 +57,7 @@ def detect_peaks(conf : DictConfig) -> None:
 def main(conf : DictConfig) -> None:
     print(OmegaConf.to_yaml(conf))
 
-    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    subj_dirs=utils.get_dirs_with_str(conf.root_dir, 'P')
     for subj_dir in subj_dirs:
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
@@ -74,7 +67,7 @@ def main(conf : DictConfig) -> None:
             if not os.path.exists(data_path):
                 print(f'{data_path} does not exist. Continuing...')
                 continue
-            output,original_freq=extract_smartwatch_data(data_path,conf)
+            output,original_freq=utils.extract_smartwatch_data(data_path,conf)
             t=(output['ts'][-1]-output['ts'][0])
             if t<conf.smartwatch.rate_window:
                 print('session too short. Skipping...')
@@ -276,5 +269,5 @@ def main(conf : DictConfig) -> None:
 
 
 
-if __name__ == "__main__":
-    create_dataset()
+# if __name__ == "__main__":
+#     create_dataset()

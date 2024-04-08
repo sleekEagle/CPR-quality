@@ -177,7 +177,7 @@ def create_dataset(conf : DictConfig) -> None:
 
     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
     gt_data,sw_data=[],[]
-    depth_data,c_comp_data=[],[]
+    depth_data,n_comp_data=[],[]
     part_data=[]
 
     for subj_dir in subj_dirs:
@@ -250,14 +250,14 @@ def create_dataset(conf : DictConfig) -> None:
                 gt_data.append(gt_window)
                 sw_data.append(sw_window)
                 depth_data.append(depth)
-                c_comp_data.append(n_cmp)
+                n_comp_data.append(n_cmp)
                 part_data.append(part)
     
     #write data to file
     gt_data=np.array(gt_data)
     sw_data=np.array(sw_data)
     depth_data=np.array(depth_data)
-    c_comp_data=np.array(c_comp_data)
+    n_comp_data=np.array(n_comp_data)
     part_data=np.array(part_data)
 
     out_dir=os.path.join(root_dir,'smartwatch_dataset')
@@ -265,7 +265,7 @@ def create_dataset(conf : DictConfig) -> None:
     np.save(os.path.join(out_dir,'gt_data'), gt_data)
     np.save(os.path.join(out_dir,'sw_data'), sw_data)
     np.save(os.path.join(out_dir,'depth_data'), depth_data)
-    np.save(os.path.join(out_dir,'c_comp_data'), c_comp_data)
+    np.save(os.path.join(out_dir,'n_comp_data'), n_comp_data)
     np.save(os.path.join(out_dir,'part_data'), part_data)
 
     np.load(os.path.join(out_dir,'gt_data.npy'))
