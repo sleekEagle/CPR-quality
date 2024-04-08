@@ -1,6 +1,3 @@
-from autodistill_grounding_dino import GroundingDINO
-from autodistill.detection import CaptionOntology
-from autodistill.utils import plot
 import numpy as np
 import os
 import sys
@@ -10,6 +7,8 @@ import json
 import time
 import logging
 import matplotlib.pyplot as plt
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 kinect_ts_format = "%H_%M_%S.%f"
 root_dir='D:\\CPR_data_raw\\'
@@ -172,8 +171,108 @@ def interpolate_smartwatch_data():
             np.savetxt(out_path,data)
 
 
+@hydra.main(version_base=None, config_path="../conf", config_name="config")
+def create_dataset(conf : DictConfig) -> None:
+    print(OmegaConf.to_yaml(conf))
 
-extract_data()
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    gt_data,sw_data=[],[]
+    depth_data,c_comp_data=[],[]
+    part_data=[]
+
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            # if session_dir!=r'D:\CPR_extracted\P13\s_8':
+            #     continue
+            print(f'Processing {session_dir}')
+            data_path=os.path.join(session_dir,'smartwatch','smartwatch.txt')
+            if not os.path.exists(data_path):
+                print(f'{data_path} does not exist. Continuing...')
+                continue
+            output,original_freq=utils.extract_smartwatch_data(data_path,conf)
+            #read GT depth sensor data
+            depth_vals=np.array(utils.read_allnum_lines(os.path.join(session_dir,'depth_sensor.txt')))
+            #read GT depth sensor data
+            if np.isnan(depth_vals).any():
+                print(f'Nan values in depth sensor data. Skipping...')
+                continue
+            depth_ts=np.array(utils.read_allnum_lines(os.path.join(session_dir,'depth_sensor_ts.txt')))
+
+            sw_ts=output['ts']
+            t=(depth_ts[-1]-depth_ts[0])/60
+            valid = (depth_ts > sw_ts[0]) & (depth_ts < sw_ts[-1])
+            depth_ts=depth_ts[valid]
+            depth_vals=depth_vals[valid]
+
+            t=(depth_ts[-1]-depth_ts[0])/60
+            #get number of zero crossings
+            depth_vals_norm_=utils.moving_normalize(depth_vals, 100)
+            num_zero_crossings = len(np.where(np.diff(np.sign(depth_vals_norm_)))[0])/t
+            fit_window=int(1/num_zero_crossings*2700)
+            idx=np.arange(len(depth_vals))/len(depth_vals)
+            depth_vals_interp=utils.interpolate_between_ts(depth_vals,idx,idx,fit_window=fit_window,deg=2)
+            depth_vals_norm=utils.moving_normalize(depth_vals_interp, 100)
+            dist=int(1/num_zero_crossings*1000)
+            GT_peaks,GT_valleys,idx=utils.find_peaks_and_valleys(depth_vals_norm,distance=dist,plot=False)
+
+            #create windows
+            window_len=conf.smartwatch.rate_window*conf.smartwatch.TARGET_FREQ
+            increment=int(window_len*conf.smartwatch.overlap)
+            idx=0
+
+            while(((idx+window_len)<len(sw_ts)) and ((idx+window_len)<len(depth_ts)) and (sw_ts[-1]>sw_ts[idx+window_len]) and (depth_ts[-1]>depth_ts[idx+window_len])):
+                gt_window=depth_vals[idx:idx+window_len]
+                sw_window=np.array([output['acc_interp'][idx:idx+window_len],
+                           output['acc_interp'][idx:idx+window_len],
+                           output['acc_interp'][idx:idx+window_len]])
+                GT_peaks_window=GT_peaks[(GT_peaks>=idx) & (GT_peaks<(idx+window_len))]-idx
+                GT_valleys_window=GT_valleys[(GT_valleys>=idx) & (GT_valleys<(idx+window_len))]-idx
+                idx+=increment
+                # plt.plot(gt_window)
+                # plt.scatter(GT_peaks_window,gt_window[GT_peaks_window],c='r')
+                # plt.scatter(GT_valleys_window,gt_window[GT_valleys_window],c='g')
+                all_pts=np.concatenate((GT_peaks_window,GT_valleys_window))
+                all_pts.sort()
+                n,d=0,0
+                for pt in GT_peaks_window:
+                    i=np.argwhere(all_pts==pt)[0][0]
+                    if ((i+1)<len(all_pts)) and (all_pts[i+1] in GT_valleys_window):
+                        d+=abs(gt_window[pt]-gt_window[all_pts[i+1]])
+                        n+=1
+                    if ((i-1)>=0) and (all_pts[i-1] in GT_valleys_window):
+                        d+=abs(gt_window[pt]-gt_window[all_pts[i-1]])
+                        n+=1
+                depth=d/n
+                n_cmp=0.5*(len(GT_peaks_window)+len(GT_valleys_window))
+                part = int(os.path.basename(os.path.dirname(session_dir))[1:])
+
+                gt_data.append(gt_window)
+                sw_data.append(sw_window)
+                depth_data.append(depth)
+                c_comp_data.append(n_cmp)
+                part_data.append(part)
+    
+    #write data to file
+    gt_data=np.array(gt_data)
+    sw_data=np.array(sw_data)
+    depth_data=np.array(depth_data)
+    c_comp_data=np.array(c_comp_data)
+    part_data=np.array(part_data)
+
+    out_dir=os.path.join(root_dir,'smartwatch_dataset')
+    os.makedirs(out_dir,exist_ok=True)
+    np.save(os.path.join(out_dir,'gt_data'), gt_data)
+    np.save(os.path.join(out_dir,'sw_data'), sw_data)
+    np.save(os.path.join(out_dir,'depth_data'), depth_data)
+    np.save(os.path.join(out_dir,'c_comp_data'), c_comp_data)
+    np.save(os.path.join(out_dir,'part_data'), part_data)
+
+    np.load(os.path.join(out_dir,'gt_data.npy'))
+
+
+if __name__ == "__main__":
+    create_dataset()
 
 
 
