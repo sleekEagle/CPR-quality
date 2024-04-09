@@ -27,6 +27,9 @@ class SW_dataset(Dataset):
         # gt_data=np.load(os.path.join(data_path,'gt_data.npy'))[valid_args,:]
         self.gt_depth=np.load(os.path.join(data_path,'depth_data.npy'))[valid_args]
         sw_data=np.load(os.path.join(data_path,'sw_data.npy'))[valid_args,:,:,:].squeeze()
+        self.peak_data=np.load(os.path.join(data_path,'gt_peak_data.npy'))[valid_args,:].squeeze()
+        self.valley_data=np.load(os.path.join(data_path,'gt_valley_data.npy'))[valid_args,:].squeeze()
+
         l,_,w,_=sw_data.shape
         self.sw_data=np.reshape(sw_data,(l,9,w))
         self.gt_n_comp=np.load(os.path.join(data_path,'n_comp_data.npy'))[valid_args].squeeze()
@@ -49,7 +52,9 @@ class SW_dataset(Dataset):
         sw_data = np.reshape(sw_data,(9,w))
         gt_depth=self.gt_depth[idx]
         gt_n_comp=self.gt_n_comp[idx]
-        return sw_data, gt_depth, gt_n_comp
+        peaks=self.peak_data[idx]
+        valleys=self.valley_data[idx]
+        return sw_data, gt_depth, gt_n_comp,peaks,valleys
 
 
 

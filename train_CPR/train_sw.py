@@ -26,7 +26,7 @@ def eval(model,data_loader,conf):
     n_error_mean/=len(data_loader)
     depth_error_mean/=len(data_loader)
     print('------------------------------------')
-    print(f'Test : Mean n error: {n_error_mean:.4f} Mean depth error: {depth_error_mean:.4f}')
+    print(f'Test : Mean n error: {n_error_mean*60/conf.smartwatch.rate_window:.4f} Mean depth error: {depth_error_mean:.4f} mm')
     print('------------------------------------')
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
@@ -45,7 +45,7 @@ def main(conf):
         mean_depth_loss,mean_n_loss=0,0 
         for batch in train_dataloader:
             optimizer.zero_grad()
-            sw_data, gt_depth, gt_n_comp=batch
+            sw_data, gt_depth, gt_n_comp,peaks,valleys=batch
             pred_n, pred_depth=model(sw_data)
             n_loss=criterion(pred_n,gt_n_comp)
             depth_loss=criterion(pred_depth,gt_depth.squeeze())

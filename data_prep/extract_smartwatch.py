@@ -202,50 +202,64 @@ def create_dataset(conf : DictConfig) -> None:
 
             sw_ts=output['ts']
             t=(depth_ts[-1]-depth_ts[0])/60
-            valid = (depth_ts > sw_ts[0]) & (depth_ts < sw_ts[-1])
-            depth_ts=depth_ts[valid]
-            depth_vals=depth_vals[valid]
+            valid = (sw_ts > depth_ts[0]) & (sw_ts < depth_ts[-1])
+            sw_ts=sw_ts[valid]
+            sw_acc=output['acc_interp'][valid]
+            sw_gyr=output['gyr_interp'][valid]
+            sw_grav=output['grav_interp'][valid]
 
             t=(depth_ts[-1]-depth_ts[0])/60
             #get number of zero crossings
             depth_vals_norm_=utils.moving_normalize(depth_vals, 100)
             num_zero_crossings = len(np.where(np.diff(np.sign(depth_vals_norm_)))[0])/t
-            fit_window=int(1/num_zero_crossings*2700)
+            fit_window=int(1/num_zero_crossings*7000)
             idx=np.arange(len(depth_vals))/len(depth_vals)
-            depth_vals_interp=utils.interpolate_between_ts(depth_vals,idx,idx,fit_window=fit_window,deg=2)
+
+            depth_vals_interp=utils.interpolate_between_ts(depth_vals,depth_ts,sw_ts,fit_window=10,deg=2)
+            dist=int(1/num_zero_crossings*4000)
             depth_vals_norm=utils.moving_normalize(depth_vals_interp, 100)
-            dist=int(1/num_zero_crossings*1000)
             GT_peaks,GT_valleys,idx=utils.find_peaks_and_valleys(depth_vals_norm,distance=dist,plot=False)
 
-            #create windows
-            window_len=conf.smartwatch.rate_window*conf.smartwatch.TARGET_FREQ
-            increment=int(window_len*conf.smartwatch.overlap)
-            idx=0
+            # plt.plot(depth_vals_norm)
+            # plt.plot(depth_vals_interp)
+            # plt.scatter(GT_peaks,depth_vals_interp[GT_peaks],c='r')
+            # plt.scatter(GT_valleys,depth_vals_interp[GT_valleys],c='g')
+            # plt.show()
 
-            while(((idx+window_len)<len(sw_ts)) and ((idx+window_len)<len(depth_ts)) and (sw_ts[-1]>sw_ts[idx+window_len]) and (depth_ts[-1]>depth_ts[idx+window_len])):
-                gt_window=depth_vals[idx:idx+window_len]
-                sw_window=np.array([output['acc_interp'][idx:idx+window_len],
-                           output['acc_interp'][idx:idx+window_len],
-                           output['acc_interp'][idx:idx+window_len]])
-                GT_peaks_window=GT_peaks[(GT_peaks>=idx) & (GT_peaks<(idx+window_len))]-idx
-                GT_valleys_window=GT_valleys[(GT_valleys>=idx) & (GT_valleys<(idx+window_len))]-idx
-                idx+=increment
-                # plt.plot(gt_window)
-                # plt.scatter(GT_peaks_window,gt_window[GT_peaks_window],c='r')
-                # plt.scatter(GT_valleys_window,gt_window[GT_valleys_window],c='g')
-                all_pts=np.concatenate((GT_peaks_window,GT_valleys_window))
+            peak_array=np.zeros(len(depth_vals_interp))
+            peak_array[GT_peaks]=1
+            valley_array=np.zeros(len(depth_vals_interp))
+            valley_array[GT_valleys]=1
+
+            #create windows
+            sw_window_len=int(conf.smartwatch.window_len*conf.smartwatch.TARGET_FREQ)
+            sw_increment=int(sw_window_len*conf.smartwatch.overlap)
+
+            idx=0
+            while(((idx+sw_window_len)<len(sw_ts))):
+                sw_window=np.array([sw_acc[idx:idx+sw_window_len],
+                    sw_gyr[idx:idx+sw_window_len],
+                    sw_grav[idx:idx+sw_window_len]])
+                gt_window=depth_vals_interp[idx:idx+sw_window_len]
+                peak_window=peak_array[idx:idx+sw_window_len]
+                valley_window=valley_array[idx:idx+sw_window_len]
+                p_points=np.where(peak_window==1)[0]
+                v_points=np.where(valley_window==1)[0]
+                all_pts=np.concatenate((p_points,v_points))
                 all_pts.sort()
                 n,d=0,0
-                for pt in GT_peaks_window:
+                for pt in p_points:
                     i=np.argwhere(all_pts==pt)[0][0]
-                    if ((i+1)<len(all_pts)) and (all_pts[i+1] in GT_valleys_window):
+                    if ((i+1)<len(all_pts)) and (all_pts[i+1] in v_points):
                         d+=abs(gt_window[pt]-gt_window[all_pts[i+1]])
                         n+=1
-                    if ((i-1)>=0) and (all_pts[i-1] in GT_valleys_window):
+                        # print(abs(gt_window[pt]-gt_window[all_pts[i+1]]),pt,all_pts[i+1])
+                    if ((i-1)>=0) and (all_pts[i-1] in v_points):
                         d+=abs(gt_window[pt]-gt_window[all_pts[i-1]])
                         n+=1
+                        # print(abs(gt_window[pt]-gt_window[all_pts[i-1]]),pt,all_pts[i-1])
                 depth=d/n
-                n_cmp=0.5*(len(GT_peaks_window)+len(GT_valleys_window))
+                n_cmp=0.5*(len(p_points)+len(v_points))
                 part = int(os.path.basename(os.path.dirname(session_dir))[1:])
 
                 gt_data.append(gt_window)
@@ -253,13 +267,11 @@ def create_dataset(conf : DictConfig) -> None:
                 depth_data.append(depth)
                 n_comp_data.append(n_cmp)
                 part_data.append(part)
+                gt_peak_data.append(peak_window)
+                gt_valley_data.append(valley_window)
 
-                peak_array=np.zeros(gt_window.shape[0])
-                peak_array[GT_peaks_window]=1
-                gt_peak_data.append(peak_array)
-                valley_array=np.zeros(gt_window.shape[0])
-                valley_array[GT_valleys_window]=1
-                gt_valley_data.append(valley_array)
+                idx+=sw_increment
+
 
     #write data to file
     gt_data=np.array(gt_data)
