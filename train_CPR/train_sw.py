@@ -231,28 +231,32 @@ def peak_detection(conf):
         sw_data, gt_depth, gt,gt_n_comp,peaks,valleys=batch
         i={
             'acc': 0,
-            'gyro': 1,
+            'gyr': 1,
             'mag': 2
         }  
         start_idx=i[conf.smartwatch.eval_settings.peak_detection_sensor]      
         sw_data=sw_data.squeeze().numpy()[start_idx:(start_idx+3)]
         prominant_axis=np.argmax(np.std(sw_data,axis=1))
         data=sw_data[prominant_axis,:]
-        data=(data-min(data))/(max(data)-min(data))
-        data_avg=utils.moving_normalize(data,window_size=50)
+        data_avg=(data-min(data))/(max(data)-min(data))
+        data_avg=utils.moving_normalize(data,window_size=100)
+
+        plt.plot(data_avg)
 
         t=conf.smartwatch.window_len
         num_zero_crossings = len(np.where(np.diff(np.sign(data_avg)))[0])/t
-        fit_window=int(800/num_zero_crossings)
+        fit_window=int(400/num_zero_crossings)
         idx=np.arange(len(data_avg))/len(data_avg)
-        data_int=utils.interpolate_between_ts(data,idx,idx,fit_window=fit_window,deg=2)
-        data_avg=utils.moving_normalize(data_int,window_size=50)
+        data_int=utils.interpolate_between_ts(data_avg,idx,idx,fit_window=fit_window,deg=2)
         plt.plot(data_int)
-        plt.plot(data_avg)
+        plt.plot(gt[0,:].numpy())
         plt.show()
+        # data_avg=utils.moving_normalize(data_int,window_size=300)
+
+        print(f'Zero crossings: {num_zero_crossings}')
         dist=int(1/num_zero_crossings*200)
-        data_int=data_int-np.mean(data_int)
-        p, v,_=utils.find_peaks_and_valleys(data_avg,distance=dist,height=0.1,plot=True)
+        # data_int=data_int-np.mean(data_int)
+        p, v,_=utils.find_peaks_and_valleys(data_int,distance=dist,height=0.0,plot=True)
         pred_n_comp=0.5*(len(p)+len(v))
         gt_compressions=0.5*(len(peaks[peaks==1])+len(valleys[valleys==1]))
         comp_error=abs(pred_n_comp-gt_compressions)
