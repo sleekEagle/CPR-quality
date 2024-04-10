@@ -6,6 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 import utils
 import numpy as np
+from torch.optim.lr_scheduler import StepLR
 
 criterion = nn.MSELoss()
 
@@ -59,6 +60,7 @@ def main(conf):
     model=SWNET(conf)
     model=model.double()
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.smartwatch.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
     
     train_dataloader, test_dataloader = dataloader.get_dataloaders(conf)
     for epoch in range(conf.smartwatch.epochs):
@@ -74,6 +76,8 @@ def main(conf):
             loss=signal_loss+depth_loss
             loss.backward()
             optimizer.step()
+            # Step the scheduler
+            scheduler.step()
             
             mean_depth_loss+=depth_loss.item()
             mean_signal_loss+=signal_loss.item()
