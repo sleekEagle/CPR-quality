@@ -237,9 +237,9 @@ def create_dataset(conf : DictConfig) -> None:
 
             idx=0
             while(((idx+sw_window_len)<len(sw_ts))):
-                sw_window=np.array([sw_acc[idx:idx+sw_window_len],
+                sw_window=np.concatenate([sw_acc[idx:idx+sw_window_len],
                     sw_gyr[idx:idx+sw_window_len],
-                    sw_grav[idx:idx+sw_window_len]])
+                    sw_grav[idx:idx+sw_window_len]],axis=-1)
                 gt_window=depth_vals_interp[idx:idx+sw_window_len]
                 peak_window=peak_array[idx:idx+sw_window_len]
                 valley_window=valley_array[idx:idx+sw_window_len]

@@ -7,6 +7,7 @@ import utils
 import numpy as np
 import cv2
 import json
+from scipy.signal import gaussian
 
 # Define your custom dataset class
 class SW_dataset(Dataset):
@@ -24,21 +25,30 @@ class SW_dataset(Dataset):
         data_path=os.path.join(self.data_root,'smartwatch_dataset')
         part_data=np.load(os.path.join(data_path,'part_data.npy'))
         valid_args = np.argwhere(np.isin(part_data, self.part))
-        # gt_data=np.load(os.path.join(data_path,'gt_data.npy'))[valid_args,:]
+        self.gt_data=np.load(os.path.join(data_path,'gt_data.npy'))[valid_args,:]
         self.gt_depth=np.load(os.path.join(data_path,'depth_data.npy'))[valid_args]
-        sw_data=np.load(os.path.join(data_path,'sw_data.npy'))[valid_args,:,:,:].squeeze()
+        self.gt=np.load(os.path.join(data_path,'gt_data.npy'))[valid_args,:].squeeze()   
+
+        self.sw_data=np.load(os.path.join(data_path,'sw_data.npy'))[valid_args,:,:].squeeze()
         self.peak_data=np.load(os.path.join(data_path,'gt_peak_data.npy'))[valid_args,:].squeeze()
         self.valley_data=np.load(os.path.join(data_path,'gt_valley_data.npy'))[valid_args,:].squeeze()
 
-        l,_,w,_=sw_data.shape
-        self.sw_data=np.reshape(sw_data,(l,9,w))
+        # l,d1,w,d2=sw_data.shape
+        # sw_data_list=[]
+        # for i in range(d1):
+        #     for j in range(d2):
+        #         sw_data_list.append(sw_data[:,i,:,j])
+
         self.gt_n_comp=np.load(os.path.join(data_path,'n_comp_data.npy'))[valid_args].squeeze()
         self.len=len(valid_args)
+        self.sigma = conf.smartwatch.smooth_sigma
+        self.smooth_peaks=conf.smartwatch.smooth_peaks
 
         #normalize data
+        l,w,dim=self.sw_data.shape
         if conf.smartwatch.normalize:
-            sw_min_ar=np.expand_dims(np.expand_dims(np.array(sw_min),0),2).repeat(l,axis=0).repeat(w,axis=2)
-            sw_max_ar=np.expand_dims(np.expand_dims(np.array(sw_max),0),2).repeat(l,axis=0).repeat(w,axis=2)
+            sw_min_ar=np.expand_dims(np.expand_dims(np.array(sw_min),0),0).repeat(l,axis=0).repeat(w,axis=1)
+            sw_max_ar=np.expand_dims(np.expand_dims(np.array(sw_max),0),0).repeat(l,axis=0).repeat(w,axis=1)
             self.sw_data=(self.sw_data-sw_min_ar)/(sw_max_ar-sw_min_ar)
             self.gt_depth=(self.gt_depth-depth_min)/(depth_max-depth_min)
             self.gt_n_comp=(self.gt_n_comp-n_comp_min)/(n_comp_max-n_comp_min)
@@ -48,13 +58,20 @@ class SW_dataset(Dataset):
 
     def __getitem__(self, idx):
         sw_data=self.sw_data[idx,:,:]
-        _,w=sw_data.shape
-        sw_data = np.reshape(sw_data,(9,w))
+        sw_data = np.swapaxes(sw_data, 0, 1)
         gt_depth=self.gt_depth[idx]
         gt_n_comp=self.gt_n_comp[idx]
         peaks=self.peak_data[idx]
         valleys=self.valley_data[idx]
-        return sw_data, gt_depth, gt_n_comp,peaks,valleys
+        gt=self.gt[idx]
+
+        if self.smooth_peaks:
+            # kernel = gaussian(10 * self.sigma, self.sigma)
+            # peaks = np.convolve(peaks, kernel, mode='same')
+            # valleys = np.convolve(valleys, kernel, mode='same')
+            gt=(gt-min(gt))/(max(gt)-min(gt))
+        
+        return sw_data, gt_depth, gt,gt_n_comp,peaks,valleys
 
 
 
