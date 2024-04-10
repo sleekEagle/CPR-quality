@@ -223,6 +223,42 @@ def eval_checkpt(conf):
     eval(model,test_dataloader,conf,k=conf.smartwatch.eval_settings.k,
          height=conf.smartwatch.eval_settings.height,
          show_plots=conf.smartwatch.eval_settings.show_plots)
+    
+def peak_detection(conf):
+    _, test_dataloader = dataloader.get_dataloaders(conf)
+    mean_error_list=[]
+    for batch in test_dataloader:
+        sw_data, gt_depth, gt,gt_n_comp,peaks,valleys=batch
+        i={
+            'acc': 0,
+            'gyro': 1,
+            'mag': 2
+        }  
+        start_idx=i[conf.smartwatch.eval_settings.peak_detection_sensor]      
+        sw_data=sw_data.squeeze().numpy()[start_idx:(start_idx+3)]
+        prominant_axis=np.argmax(np.std(sw_data,axis=1))
+        data=sw_data[prominant_axis,:]
+        data=(data-min(data))/(max(data)-min(data))
+        data_avg=utils.moving_normalize(data,window_size=50)
+
+        t=conf.smartwatch.window_len
+        num_zero_crossings = len(np.where(np.diff(np.sign(data_avg)))[0])/t
+        fit_window=int(800/num_zero_crossings)
+        idx=np.arange(len(data_avg))/len(data_avg)
+        data_int=utils.interpolate_between_ts(data,idx,idx,fit_window=fit_window,deg=2)
+        data_avg=utils.moving_normalize(data_int,window_size=50)
+        plt.plot(data_int)
+        plt.plot(data_avg)
+        plt.show()
+        dist=int(1/num_zero_crossings*200)
+        data_int=data_int-np.mean(data_int)
+        p, v,_=utils.find_peaks_and_valleys(data_avg,distance=dist,height=0.1,plot=True)
+        pred_n_comp=0.5*(len(p)+len(v))
+        gt_compressions=0.5*(len(peaks[peaks==1])+len(valleys[valleys==1]))
+        comp_error=abs(pred_n_comp-gt_compressions)
+        mean_error_list.append(comp_error)
+    mean_error=np.mean(mean_error_list)
+    print(f'Mean compression error: {mean_error}')
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
@@ -233,6 +269,8 @@ def main(conf):
         eval_checkpt(conf)
     elif conf.smartwatch.mode=='stats':
         get_stats(conf)
+    elif conf.smartwatch.mode=='peak_detection':
+        peak_detection(conf)
         
 if __name__ == "__main__":
     main()

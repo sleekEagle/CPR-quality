@@ -27,7 +27,7 @@ smartwatch:
   smooth_peaks: True
   smooth_sigma: 1
   model_save_path: 'D:\CPR_extracted\smartwatch_dataset\checkpoint\model.pth'
-  mode: 'eval'   # train , eval or stats, eval_stats
+  mode: 'peak_detection'   # train , eval or stats, eval_stats, peak_detection
   eval_settings:
     k: 80
     height: 0.05
@@ -36,6 +36,7 @@ smartwatch:
     CPR_rate: [95,125]   #good compression rate beat per minute
     CPR_depth: [45,55]   #good compression depth in mm
     plot_save_path: 'D:\CPR_extracted\smartwatch_dataset\plots'
+    peak_detection_sensor: acc  # acc, gyr or mag
 
 
 
