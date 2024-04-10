@@ -76,8 +76,6 @@ def main(conf):
             loss=signal_loss+depth_loss
             loss.backward()
             optimizer.step()
-            # Step the scheduler
-            scheduler.step()
             
             mean_depth_loss+=depth_loss.item()
             mean_signal_loss+=signal_loss.item()
@@ -86,6 +84,8 @@ def main(conf):
         print(f'Epoch: {epoch} Mean depth loss: {mean_depth_loss:.4f} Mean signal loss: {mean_signal_loss:.4f}')
         if (epoch+1)%conf.smartwatch.eval_freq==0:
             eval(model,test_dataloader,conf)
+        # Step the scheduler
+        scheduler.step()
         
 if __name__ == "__main__":
     main()
