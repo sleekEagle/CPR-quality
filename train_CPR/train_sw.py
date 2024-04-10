@@ -7,13 +7,16 @@ import matplotlib.pyplot as plt
 import utils
 import numpy as np
 import os
+import pandas as pd
 
 criterion = nn.MSELoss()
 
-def eval(model,data_loader,conf,k=30,height=0.15):
+def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
     depth_min,depth_max=conf.smartwatch.depth_min,conf.smartwatch.depth_max
     n_comp_min,n_comp_max=conf.smartwatch.n_comp_min,conf.smartwatch.n_comp_max
     signal_error_mean,depth_error_mean,mean_comp_error=0,0,0
+    gt_compressions_list,depth_error_list,gt_depth_list,comp_error_list=[],[],[],[]
+
     for batch in data_loader:
         sw_data, gt_depth, gt,gt_n_comp,peaks,valleys=batch
         pred_signal,pred_depth=model(sw_data)
@@ -33,13 +36,20 @@ def eval(model,data_loader,conf,k=30,height=0.15):
         pred_peaks, pred_valleys,_=utils.find_peaks_and_valleys(pred,distance=dist,height=height,plot=False)
         n_compressions=0.5*(len(pred_peaks)+len(pred_valleys))
         gt_compressions=0.5*(len(peaks[peaks==1])+len(valleys[valleys==1]))
+
         comp_error=abs(n_compressions-gt_compressions)
         mean_comp_error+=comp_error
 
         signal_loss=criterion(pred_signal,gt)
-        depth_loss=criterion(pred_depth,gt_depth)
+        depth_loss=torch.abs(pred_depth-gt_depth).item()
         signal_error_mean+=signal_loss.item()
-        depth_error_mean+=depth_loss.item()
+        depth_error_mean+=depth_loss
+
+        gt_compressions_list.append(gt_compressions)
+        depth_error_list.append(depth_loss)
+        gt_depth_list.append(gt_depth.item())
+        comp_error_list.append(comp_error)
+
 
         
     signal_error_mean/=len(data_loader)
@@ -48,8 +58,118 @@ def eval(model,data_loader,conf,k=30,height=0.15):
 
     
     print('------------------------------------')
-    print(f'Test : Mean signal error: {signal_error_mean} Mean depth error: {depth_error_mean**0.5:.4f} mm Mean n_comp_error: {mean_comp_error:.4f}')
+    print(f'Test : Mean signal error: {signal_error_mean} Mean depth error: {depth_error_mean:.4f} mm Mean n_comp_error: {mean_comp_error:.4f}')
     print('------------------------------------')
+
+    if show_plots:
+
+        CPR_rate=conf.smartwatch.eval_settings.CPR_rate
+        CPR_depth=conf.smartwatch.eval_settings.CPR_depth
+        save_path=conf.smartwatch.eval_settings.plot_save_path
+
+        gt_depth_list=np.array(gt_depth_list)
+        depth_error_list=np.array(depth_error_list)
+        comp_error_list=np.array(comp_error_list)
+        gt_compressions_list=np.array(gt_compressions_list)
+        
+        plt.figure()
+        plt.hist(gt_depth_list, bins=20)
+        plt.xlabel('GT depth (mm)')
+        plt.ylabel('Number of samples')
+        d=conf.smartwatch.eval_settings.CPR_depth
+        plt.axvline(x=0.5*(d[0]+d[1]), color='red', linestyle='--')
+        plt.text(0.5, 0.7, f'Total Samples : {len(gt_depth_list)}', transform=plt.gca().transAxes)
+        plt.savefig(os.path.join(save_path,'depth_hist.png'), dpi=500)
+
+
+        plt.figure()
+        plt.hist(gt_compressions_list*12, bins=20)
+        plt.xlabel('Number of compressions per minute')
+        r=conf.smartwatch.eval_settings.CPR_rate
+        plt.axvline(x=0.5*(r[0]+r[1]), color='red', linestyle='--')
+        plt.ylabel('Number of samples')
+        plt.text(0.5, 0.7, f'Total Samples : {len(gt_depth_list)}', transform=plt.gca().transAxes)
+        plt.savefig(os.path.join(save_path,'compression_hist.png'), dpi=500)
+
+
+        #plot depth error vs gt depth
+        depth_sort_idx=np.argsort(gt_depth_list)
+        gt_depth=gt_depth_list[depth_sort_idx]
+        d_errors=depth_error_list[depth_sort_idx]
+        c_errors=comp_error_list[depth_sort_idx]
+
+        good_depth_idx=np.where((gt_depth<=CPR_depth[-1]) & (gt_depth>=CPR_depth[0]))
+        good_mean_depth_error=np.mean(d_errors[good_depth_idx])
+        good_mean_comp_error=np.mean(c_errors[good_depth_idx])
+
+        gt_depth=gt_depth.astype(int)
+        df=pd.DataFrame()
+        df['d']=gt_depth
+        df['d_error']=d_errors
+        df['c_error']=c_errors
+        df_grouped = df.groupby('d').mean()
+        
+        plt.figure()
+        plt.scatter(df_grouped.index, df_grouped['d_error'], s=30)
+        y_min, y_max = plt.ylim()
+        d=conf.smartwatch.eval_settings.CPR_depth
+        plt.axvline(x=0.5*(d[0]+d[1]), color='red', linestyle='--')
+        # plt.fill_between(df_grouped.index, y_max, alpha=0.2, where=(df_grouped.index >= CPR_depth[0]) & (df_grouped.index <= CPR_depth[-1]),color='limegreen')
+        plt.xlabel('GT mean compression depth (mm)')
+        plt.ylabel('Predicted depth error (mm)')
+        # plt.text(0.7, 0.7, f'Mean error : {good_mean_depth_error:.1f}', transform=plt.gca().transAxes)
+        plt.savefig(os.path.join(save_path,'d_error_v_d.png'), dpi=500)
+
+
+        plt.figure()
+        plt.scatter(df_grouped.index, df_grouped['c_error']*12)
+        y_min, y_max = plt.ylim()
+        d=conf.smartwatch.eval_settings.CPR_depth
+        plt.axvline(x=0.5*(d[0]+d[1]), color='red', linestyle='--')
+        # plt.fill_between(df_grouped.index, y_max, alpha=0.2, where=(df_grouped.index >= CPR_depth[0]) & (df_grouped.index <= CPR_depth[-1]),color='limegreen')
+        # plt.text(0.7, 0.7, f'Mean error : {good_mean_comp_error*12:.1f}', transform=plt.gca().transAxes)
+        plt.xlabel('GT mean compression depth (mm)')
+        plt.ylabel('Number of compression error per minute')
+        plt.savefig(os.path.join(save_path,'c_error_v_d.png'), dpi=500)
+
+
+        c_sort_idx=np.argsort(gt_compressions_list)
+        c_list=gt_compressions_list[c_sort_idx]
+        d_errors=depth_error_list[c_sort_idx]
+        c_errors=comp_error_list[c_sort_idx]
+
+        good_c_idx=np.where((gt_compressions_list*12<=CPR_rate[-1]) & (gt_compressions_list*12>=CPR_rate[0]))
+        good_mean_depth_error=np.mean(d_errors[good_c_idx])
+        good_mean_comp_error=np.mean(c_errors[good_c_idx])
+
+        df=pd.DataFrame()
+        df['c']=c_list
+        df['d_error']=d_errors
+        df['c_error']=c_errors
+        df_grouped = df.groupby('c').mean()
+
+        plt.figure()
+        plt.scatter(df_grouped.index*12, df_grouped['d_error'])
+        y_min, y_max = plt.ylim()
+        # plt.fill_between(df_grouped.index*12, y_max, alpha=0.2, where=(df_grouped.index*12 >= CPR_rate[0]) & (df_grouped.index*12 <= CPR_rate[-1]),color='limegreen')
+        # plt.text(0.32, 0.7, f'Mean error : {good_mean_depth_error:.1f}', transform=plt.gca().transAxes)
+        # r=conf.smartwatch.eval_settings.CPR_rate
+        plt.axvline(x=0.5*(r[0]+r[1]), color='red', linestyle='--')
+        plt.xlabel('Number of compressions per minute')
+        plt.ylabel('Depth error (mm)')
+        plt.savefig(os.path.join(save_path,'d_error_vs_c.png'), dpi=500)
+
+        plt.figure()
+        plt.scatter(df_grouped.index*12, df_grouped['c_error']*12)
+        y_min, y_max = plt.ylim()
+        # plt.fill_between(df_grouped.index*12, y_max, alpha=0.2, where=(df_grouped.index*12 >= CPR_rate[0]) & (df_grouped.index*12 <= CPR_rate[-1]),color='limegreen')
+        # plt.text(0.32, 0.7, f'Mean error : {good_mean_comp_error*12:.1f}', transform=plt.gca().transAxes)
+        r=conf.smartwatch.eval_settings.CPR_rate
+        plt.axvline(x=0.5*(r[0]+r[1]), color='red', linestyle='--')
+        plt.xlabel('Number of compressions per minute')
+        plt.ylabel('Number of compression error per minute')
+        plt.savefig(os.path.join(save_path,'c_error_vs_c.png'), dpi=500)
+    
 
 def train(conf):
 
@@ -100,7 +220,9 @@ def eval_checkpt(conf):
     model.eval()
 
     _, test_dataloader = dataloader.get_dataloaders(conf)
-    eval(model,test_dataloader,conf,k=conf.smartwatch.eval_setitngs.k,height=conf.smartwatch.eval_setitngs.height)
+    eval(model,test_dataloader,conf,k=conf.smartwatch.eval_settings.k,
+         height=conf.smartwatch.eval_settings.height,
+         show_plots=conf.smartwatch.eval_settings.show_plots)
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
@@ -114,3 +236,32 @@ def main(conf):
         
 if __name__ == "__main__":
     main()
+
+
+'''
+Fine - tuning
+
+k	depth error	comp error height=0.15
+20	8.07	0.88
+30		0.76
+40		0.64
+50		0.58
+60		0.55
+70		0.54
+80		0.53
+90		0.56
+100		0.66
+		
+		
+k=80		
+height	comp error	
+0.001	0.4582	
+0.01	0.4565	
+0.05	0.4517	
+0.1	0.4773	
+0.15	0.53	
+
+
+best k =80 height=0.05
+
+'''
