@@ -37,11 +37,11 @@ def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
         n_compressions=0.5*(len(pred_peaks)+len(pred_valleys))
         gt_compressions=0.5*(len(peaks[peaks==1])+len(valleys[valleys==1]))
 
-        comp_error=abs(n_compressions-gt_compressions)
+        comp_error=(n_compressions-gt_compressions)**2
         mean_comp_error+=comp_error
 
         signal_loss=criterion(pred_signal,gt)
-        depth_loss=torch.abs(pred_depth-gt_depth).item()
+        depth_loss=torch.square(pred_depth-gt_depth).item()
         signal_error_mean+=signal_loss.item()
         depth_error_mean+=depth_loss
 
@@ -55,10 +55,9 @@ def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
     signal_error_mean/=len(data_loader)
     depth_error_mean/=len(data_loader)
     mean_comp_error/=len(data_loader)
-
     
     print('------------------------------------')
-    print(f'Test : Mean signal error: {signal_error_mean} Mean depth error: {depth_error_mean:.4f} mm Mean n_comp_error: {mean_comp_error:.4f}')
+    print(f'Test : Mean signal error: {signal_error_mean} | RMSE depth : {depth_error_mean**0.5:.4f} mm | RMSE n_comp_error (per minute): {mean_comp_error**0.5*12:.4f}')
     print('------------------------------------')
 
     if show_plots:
@@ -108,6 +107,9 @@ def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
         df['d_error']=d_errors
         df['c_error']=c_errors
         df_grouped = df.groupby('d').mean()
+        df_grouped['d_error']=df_grouped['d_error']**0.5
+        df_grouped['c_error']=df_grouped['c_error']**0.5*12
+
         
         plt.figure()
         plt.scatter(df_grouped.index, df_grouped['d_error'], s=30)
@@ -122,7 +124,7 @@ def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
 
 
         plt.figure()
-        plt.scatter(df_grouped.index, df_grouped['c_error']*12)
+        plt.scatter(df_grouped.index, df_grouped['c_error'])
         y_min, y_max = plt.ylim()
         d=conf.smartwatch.eval_settings.CPR_depth
         plt.axvline(x=0.5*(d[0]+d[1]), color='red', linestyle='--')
@@ -147,6 +149,8 @@ def eval(model,data_loader,conf,k=30,height=0.15,show_plots=False):
         df['d_error']=d_errors
         df['c_error']=c_errors
         df_grouped = df.groupby('c').mean()
+        df_grouped['d_error']=df_grouped['d_error']**0.5
+        df_grouped['c_error']=df_grouped['c_error']**0.5
 
         plt.figure()
         plt.scatter(df_grouped.index*12, df_grouped['d_error'])
@@ -227,7 +231,10 @@ def eval_checkpt(conf):
 def peak_detection(conf):
     _, test_dataloader = dataloader.get_dataloaders(conf)
     mean_error_list=[]
-    for batch in test_dataloader:
+    gt_compressions_list,pred_compression_error_list=[],[]
+
+    for j,batch in enumerate(test_dataloader):
+        print(f'Batch: {j}/{len(test_dataloader)}',end='\r')
         sw_data, gt_depth, gt,gt_n_comp,peaks,valleys=batch
         i={
             'acc': 0,
@@ -241,28 +248,87 @@ def peak_detection(conf):
         data_avg=(data-min(data))/(max(data)-min(data))
         data_avg=utils.moving_normalize(data,window_size=100)
 
-        plt.plot(data_avg)
+        # plt.plot(data_avg)
 
         t=conf.smartwatch.window_len
         num_zero_crossings = len(np.where(np.diff(np.sign(data_avg)))[0])/t
         fit_window=int(400/num_zero_crossings)
         idx=np.arange(len(data_avg))/len(data_avg)
         data_int=utils.interpolate_between_ts(data_avg,idx,idx,fit_window=fit_window,deg=2)
-        plt.plot(data_int)
-        plt.plot(gt[0,:].numpy())
-        plt.show()
+        # plt.plot(data_int)
+        # plt.plot(gt[0,:].numpy())
+        # plt.show()
         # data_avg=utils.moving_normalize(data_int,window_size=300)
 
-        print(f'Zero crossings: {num_zero_crossings}')
+        # print(f'Zero crossings: {num_zero_crossings}')
         dist=int(1/num_zero_crossings*200)
         # data_int=data_int-np.mean(data_int)
-        p, v,_=utils.find_peaks_and_valleys(data_int,distance=dist,height=0.0,plot=True)
+        p, v,_=utils.find_peaks_and_valleys(data_int,distance=dist,height=0.0,plot=False)
         pred_n_comp=0.5*(len(p)+len(v))
         gt_compressions=0.5*(len(peaks[peaks==1])+len(valleys[valleys==1]))
-        comp_error=abs(pred_n_comp-gt_compressions)
-        mean_error_list.append(comp_error)
-    mean_error=np.mean(mean_error_list)
-    print(f'Mean compression error: {mean_error}')
+        gt_compressions_list.append(gt_compressions)
+        comp_error=(pred_n_comp-gt_compressions)**2
+        pred_compression_error_list.append(comp_error)
+
+    rmse_error=np.mean(pred_compression_error_list)**0.5*12
+    print(f'RMSE num compression error per minute: {rmse_error}')
+
+    if conf.smartwatch.eval_settings.show_plots:
+        save_path=conf.smartwatch.eval_settings.plot_save_path
+        gt_compressions_list=np.array(gt_compressions_list)
+        pred_compression_error_list=np.array(pred_compression_error_list)
+        idx=np.argsort(gt_compressions_list)
+        gt_compressions_list=gt_compressions_list[idx]
+        gt_compressions_list = gt_compressions_list.astype(int)
+        pred_compression_error_list=pred_compression_error_list[idx]
+        df=pd.DataFrame()
+        df['gt']=gt_compressions_list
+        df['error']=pred_compression_error_list
+        df_grouped = df.groupby('gt').mean()
+        gt=df_grouped.index
+        error=df_grouped['error']**0.5
+        plt.figure()
+        plt.scatter(gt*12,error*12)
+        plt.xlabel('GT number of compressions / minute')
+        plt.ylabel('Predicted compression error (RMSE) / minute')
+        plt.savefig(os.path.join(save_path,'compression_error_peak_detection.png'), dpi=500)
+
+
+def FFT_est(conf):
+    _, test_dataloader = dataloader.get_dataloaders(conf)
+    mean_error_list=[]
+    gt_compressions_list,pred_compression_error_list=[],[]
+
+    for batch in test_dataloader:
+        sw_data, gt_depth, gt,gt_n_comp,peaks,valleys=batch
+        i={
+            'acc': 0,
+            'gyr': 1,
+            'mag': 2
+        }  
+        start_idx=i[conf.smartwatch.eval_settings.peak_detection_sensor]      
+        sw_data=sw_data.squeeze().numpy()[start_idx:(start_idx+3)]
+        prominant_axis=np.argmax(np.std(sw_data,axis=1))
+        data=sw_data[prominant_axis,:]
+        dom_freq_est=utils.get_dominant_freq(data,conf.smartwatch.TARGET_FREQ)*60
+        gt_compressions=(0.5*(len(peaks[peaks==1])+len(valleys[valleys==1])))/conf.smartwatch.window_len*60
+        freq_error=(dom_freq_est-gt_compressions)**2
+        mean_error_list.append(freq_error)
+        gt_compressions_list.append(gt_compressions)
+
+    mean_error=np.mean(mean_error_list)**0.5
+    print(f'Mean num compression error (per minute): {mean_error}')
+    df=pd.DataFrame()
+    gt_compressions_list=np.array(gt_compressions_list).astype(int)
+    df['gt']=gt_compressions_list
+    df['error']=mean_error_list
+    df_grouped = df.groupby('gt').mean()
+    save_path=conf.smartwatch.eval_settings.plot_save_path
+    plt.plot(df_grouped.index,df_grouped['error'],'o')
+    plt.xlabel('GT number of compressions / minute')
+    plt.ylabel('Predicted compression error / minute')
+    plt.savefig(os.path.join(save_path,'compression_error_FFT.png'), dpi=500)
+
 
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
@@ -275,6 +341,8 @@ def main(conf):
         get_stats(conf)
     elif conf.smartwatch.mode=='peak_detection':
         peak_detection(conf)
+    elif conf.smartwatch.mode=='fft':
+        FFT_est(conf)
         
 if __name__ == "__main__":
     main()

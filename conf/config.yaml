@@ -27,7 +27,7 @@ smartwatch:
   smooth_peaks: True
   smooth_sigma: 1
   model_save_path: 'D:\CPR_extracted\smartwatch_dataset\checkpoint\model.pth'
-  mode: 'peak_detection'   # train , eval or stats, eval_stats, peak_detection
+  mode: 'eval'   # train , eval or stats, eval_stats, peak_detection, fft
   eval_settings:
     k: 80
     height: 0.05

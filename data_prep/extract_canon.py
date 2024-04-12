@@ -27,6 +27,8 @@ def get_ts_google(image_path):
     response = client.text_detection(image=image)
     texts = response.text_annotations
 
+    if len(texts)==0:
+        return None
     for text in texts:
         match=extract_time_str(text.description)
         if type(match)==str:
@@ -184,9 +186,77 @@ def move_masks_into_data_dir():
                 print(e)
                 logging.error(f'{session}: {e}')
 
+def get_ms_from_ts(timestamp):
+    # Split the timestamp into hours, minutes, seconds, and milliseconds
+    hours, minutes, seconds = timestamp.split(":")
+    seconds, milliseconds = seconds.split(".")
+
+    # Convert each part into milliseconds
+    hours_in_ms = int(hours) * 3600000
+    minutes_in_ms = int(minutes) * 60000
+    seconds_in_ms = int(seconds) * 1000
+    milliseconds = int(milliseconds)
+    total_milliseconds = hours_in_ms + minutes_in_ms + seconds_in_ms + milliseconds
+    return total_milliseconds
+
+
+def get_ts_from_images(root_path,original_fps=30,target_fps=1):
+    import numpy as np
+    import time
+    skip_num=original_fps//target_fps
+    sub_dirs = utils.list_subdirectories(root_path)
+    ts_list=[]
+    img_list=[]
+    for dir in sub_dirs:
+        out_file=os.path.join(root_path,dir,'timestamps.txt')
+        if os.path.exists(out_file):
+            print(f'{dir} is already processed. Continuing...')
+            continue
+        print(f'processing: {dir}')
+        img_files=utils.list_files(os.path.join(root_path,dir), 'jpg')
+        img_files_int=[int(file.split('.')[0]) for file in img_files]
+        img_files_int.sort()
+        img_files = [str(file).zfill(4) + '.jpg' for file in img_files_int]
+        process_ar=np.zeros(len(img_files))
+        process_ar[::skip_num]=1
+        selected_img_files=[img_files[i] for i in range(len(img_files)) if process_ar[i]==1]
+        #get ts with OCR
+        for i,img in enumerate(selected_img_files):
+            print(f'{i} out of {len(selected_img_files)} is done.',end='\r')
+            img_file=os.path.join(root_path,dir,img)
+            ts=get_ts_google(img_file) 
+            if ts:
+                img_list.append(int(img.split('.')[0]))
+                ts_list.append(ts)
+
+        ms_list=[get_ms_from_ts(ts) for ts in ts_list]
+        intterp_ts_list=np.zeros(len(img_files_int))
+        for i in range(len(img_list)):
+            intterp_ts_list[img_list[i]-1]=ms_list[i]
+        #interpolate
+        args=np.argwhere(intterp_ts_list!=0)
+        args.sort()
+        for i in range(len(intterp_ts_list)):
+            if intterp_ts_list[i]==0:
+                if i==0:
+                    I1,I2=args[0:2][:,0]
+                elif i==len(intterp_ts_list)-1:
+                    I1,I2=args[-2:][:,0]
+                else:
+                    I1=max(args[args<i])
+                    I2=min(args[args>i])
+                T1,T2=intterp_ts_list[I1],intterp_ts_list[I2]
+                t_interp=T2 + (T2-T1)/(I2-I1)*(i-I2)
+                intterp_ts_list[i]=t_interp
+        #save to file
+        with open(out_file, 'w') as f:
+            for i in range(len(intterp_ts_list)):
+                f.write(str(img_files[i])+','+str(intterp_ts_list[i])+'\n')
+
 
 if __name__ == "__main__":
-    move_masks_into_data_dir()
+    # move_masks_into_data_dir()
+    get_ts_from_images(r'D:\hand_depth_dataset\canon')
 
 
 
