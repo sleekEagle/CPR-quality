@@ -171,6 +171,63 @@ def detect_kypts_mp(root_dir):
                     output[img_file.split('.')[0]]=sub_dict
                 json.dump(output, file)
 
+
+
+def detect_kypts_mp_cannon(root_dir):
+    wrst=WristDet_mediapipe()
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            print(session_dir)
+            handbb_path=os.path.join(session_dir,'hand_bbs.json')
+            if os.path.exists(handbb_path):
+                with open(handbb_path, 'r') as file:
+                    hand_bbs = json.load(file)
+            else:
+                print(f'{handbb_path} does not exist')
+                continue
+
+            img_dir=[os.path.join(session_dir,s) for s in utils.list_subdirectories(session_dir) if (s[0]=='M' or s[0]=='i')][0]
+            # img_dir=os.path.join(session_dir,'kinect','color')
+            img_files=utils.list_files(img_dir,'jpg')
+            destination_directory=os.path.join(session_dir,'wrist_keypts')
+            if not os.path.exists(destination_directory):
+                os.makedirs(destination_directory)
+            destination_file=os.path.join(destination_directory,'hand_keypts_mediapipe.json')
+            if os.path.exists(destination_file):
+                with open(destination_file, 'r') as file:
+                    lines = file.readlines()
+                    if len(lines)>0:
+                        print(f'{destination_file} is not empty. Continuing...')
+                        continue
+                        # Delete the destination file if it exists
+                os.remove(destination_file)
+                   
+            with open(destination_file,'w') as file:
+                output={}
+                last_bb=0
+                for img_file in img_files:
+                    img_path=os.path.join(img_dir,img_file)
+                    img=cv2.imread(img_path)
+                    if hand_bbs[img_file.split('.')[0]]=='':
+                        hand_bb=last_bb
+                    else:
+                        hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
+                    last_bb=hand_bb
+                    pad=80
+                    img_crop= utils.crop_img_bb(img,hand_bb,pad)
+
+                    image,xy_vals=wrst.get_kypts(img_crop)
+                    
+                    x_vals=[val[0]+hand_bb[0]-pad for val in xy_vals]
+                    y_vals=[val[1]+hand_bb[1]-pad for val in xy_vals]
+
+                    sub_dict={"x":x_vals,"y":y_vals}
+                    output[img_file.split('.')[0]]=sub_dict
+                json.dump(output, file)
+
+
 '''
 different models and their performance 
 https://github.com/open-mmlab/mmpose/tree/5a3be9451bdfdad2053a90dc1199e3ff1ea1a409/configs/hand_2d_keypoint
@@ -387,11 +444,12 @@ def get_personBB(root_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Detect Keypoints')
-    parser.add_argument('--data_path', type=str, default=r'D:\CPR_extracted', help='Path to data directory')
+    parser.add_argument('--data_path', type=str, default=r'D:\canon_images', help='Path to data directory')
     parser.add_argument('--model_name', type=str, default='tracking', help='model used to detect keypoints. finetuned_RHD2D: mmpose model trained on RHD2D finetuned on our dataset, tracking: use opencv tracking')
     args=parser.parse_args()
     
-    detect_kypts_mmpose(args.model_name,args.data_path)
+    # detect_kypts_mmpose(args.model_name,args.data_path)
+    detect_kypts_mp_cannon(args.data_path)
     # detect_kypts_mp(args.data_path)
     # detec_keypoints_dir_mmpose(r'C:\Users\lahir\Downloads\cpr_data\test','RHD2D')
 

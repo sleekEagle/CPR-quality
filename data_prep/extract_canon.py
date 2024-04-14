@@ -205,13 +205,14 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
     import time
     skip_num=original_fps//target_fps
     sub_dirs = utils.list_subdirectories(root_path)
-    ts_list=[]
-    img_list=[]
     for dir in sub_dirs:
+        ts_list=[]
+        img_list=[]
+
         out_file=os.path.join(root_path,dir,'timestamps.txt')
-        if os.path.exists(out_file):
-            print(f'{dir} is already processed. Continuing...')
-            continue
+        # if os.path.exists(out_file):
+        #     print(f'{dir} is already processed. Continuing...')
+        #     continue
         print(f'processing: {dir}')
         img_files=utils.list_files(os.path.join(root_path,dir), 'jpg')
         img_files_int=[int(file.split('.')[0]) for file in img_files]
@@ -222,11 +223,12 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
         selected_img_files=[img_files[i] for i in range(len(img_files)) if process_ar[i]==1]
         #get ts with OCR
         for i,img in enumerate(selected_img_files):
-            print(f'{i} out of {len(selected_img_files)} is done.',end='\r')
+            # print(f'{i} out of {len(selected_img_files)} is done.',end='\r')
             img_file=os.path.join(root_path,dir,img)
             ts=get_ts_google(img_file) 
             if ts:
                 img_list.append(int(img.split('.')[0]))
+                # print(img,int(img.split('.')[0]))
                 ts_list.append(ts)
 
         ms_list=[get_ms_from_ts(ts) for ts in ts_list]
@@ -238,10 +240,10 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
         args.sort()
         for i in range(len(intterp_ts_list)):
             if intterp_ts_list[i]==0:
-                if i==0:
+                if i<=args[0]:
                     I1,I2=args[0:2][:,0]
-                elif i==len(intterp_ts_list)-1:
-                    I1,I2=args[-2:][:,0]
+                elif i>=args[-1]:
+                    I1,I2=args[-2:][:,0]                    
                 else:
                     I1=max(args[args<i])
                     I2=min(args[args>i])
