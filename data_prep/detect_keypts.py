@@ -6,6 +6,11 @@ import json
 import numpy as np
 import argparse
 import cv2
+import logging
+# Set up logging configuration
+logging.basicConfig(filename='output.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('This is a log message')
 
 def show_img(image):
     # Check if the image was successfully loaded
@@ -180,6 +185,7 @@ def detect_kypts_mp_cannon(root_dir):
         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
         for session_dir in session_dirs:
             print(session_dir)
+            logging.info(f"Processing session directory: {session_dir}")
             handbb_path=os.path.join(session_dir,'hand_bbs.json')
             if os.path.exists(handbb_path):
                 with open(handbb_path, 'r') as file:
