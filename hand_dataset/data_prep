@@ -3,6 +3,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import utils
 import numpy as np
+from datetime import datetime
 import matplotlib.pyplot as plt
 
 skip=120
@@ -87,11 +88,105 @@ def get_ts_canon():
             for i in range(len(intterp_ts_list)):
                 f.write(str(files[i])+','+str(intterp_ts_list[i])+'\n')
 
+def get_ms_ts(file):
+    ts=utils.get_ts_google(file)
+    if ts:
+        ts=utils.get_ms_from_ts(ts)
+    return ts
+            
+def sync_imgs():
+    kinect_root=r'D:\hand_depth_dataset\kinect'
+    canon_root=r'D:\hand_depth_dataset\canon'
+    dirs=utils.list_subdirectories(kinect_root)
+    for dir in dirs:
+        ts_path=os.path.join(kinect_root,dir,'ts.txt')
+        with open(ts_path, 'r') as f:
+            lines = f.readlines()
+        kinect_files=[l.split(',')[0] for l in lines]
+        kinect_ts=np.array([float(l.split(',')[1].strip()) for l in lines])
+        
+        indices = list(range(0, len(kinect_files), 30))
+        selected_kinect_files=[k for i,k in enumerate(kinect_files) if i in indices]
+        selected_kinect_ts_list=np.array([k for i,k in enumerate(kinect_ts) if i in indices])
+
+
+        #get all canon files and ts
+        part=dir.split('_')[0]
+        canon_dirs=utils.get_dirs_with_str(canon_root,part,i=0,j=1)
+        canon_files_list,canon_ts_list=[],[]
+        for d in canon_dirs:
+            canon_ts_file=os.path.join(canon_root,d,'ts.txt')
+            with open(canon_ts_file, 'r') as f:
+                lines = f.readlines()
+            canon_files=[os.path.join(d,os.path.basename(l.split(',')[0])) for l in lines]
+            canon_ts=[float(l.split(',')[1].strip()) for l in lines]
+            canon_files_list.extend(canon_files)
+            canon_ts_list.extend(canon_ts)
+
+        for ind in indices:
+            ts=kinect_ts[ind]
+            k_file=kinect_files[ind]
+            #find the closest canon image
+            closest_idx=np.argmin(np.abs(canon_ts_list-ts))
+            canon_ts=canon_ts_list[closest_idx]
+            closest_file=canon_files_list[closest_idx]
+            #get the kinect images around this canon image
+            v=kinect_ts-canon_ts
+            if len(v[v<=0])==0:
+                kinect_closest_lower_idx=ind
+            else:
+                kinect_closest_lower_idx=max(np.argwhere(v<=0))[0]
+            if len(v[v>=0])==0:
+                kinect_closest_upper_idx=ind
+            else:
+                kinect_closest_upper_idx=min(np.argwhere(v>=0))[0]
+
+            k_lower_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_lower_idx])
+            k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
+            k_file=os.path.join(kinect_root,dir,'color',k_file)
+            canon_file=closest_file
+
+            #get actual ts from images
+            ts=get_ms_ts(k_file)
+            k_ts = ts if ts else kinect_ts[ind]
+
+            if k_lower_file==k_file:
+                k_lower_ts=k_ts
+            else:
+                ts=get_ms_ts(k_lower_file)
+                k_lower_ts = ts if ts else kinect_ts[kinect_closest_lower_idx]
+
+            if k_upper_file==k_file:
+                k_upper_ts=k_ts
+            else:
+                ts=get_ms_ts(k_upper_file)
+                k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
+
+            ts=get_ms_ts(canon_file)
+            c_ts = ts if ts else canon_ts
+
+            while k_upper_ts<=c_ts:
+                kinect_closest_upper_idx+=1
+                k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
+                ts=get_ms_ts(k_upper_file)
+                k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
+
+            assert k_lower_ts<=c_ts<=k_upper_ts , 'timestampts not in order'
+            
+            print(k_lower_ts,k_ts,k_upper_ts,c_ts)
+            print('lower , upper:',kinect_closest_lower_idx,kinect_closest_upper_idx)
+
+        pass
+
+
 if __name__ == "__main__":
-    get_ts_kinect()
-    print('kinect done.')
-    get_ts_canon()
-    print('canon done.')
+    sync_imgs()
+
+
+
+# timestamp_str = "12:26:22.439"
+# utils.get_ms_from_ts(timestamp_str)
+
 
 
 
