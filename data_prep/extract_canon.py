@@ -11,31 +11,6 @@ logging.basicConfig(filename='ext_canon.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
 logging.info('This is extract canon code')
 
-def extract_time_str(txt):
-    x = re.findall("[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]", txt)
-    if len(x)>0:
-        return x[0]
-    else: 
-         return None
-
-def get_ts_google(image_path):
-    from google.cloud import vision
-    client = vision.ImageAnnotatorClient()
-    with open(image_path, "rb") as image_file:
-            content = image_file.read()
-    image = vision.Image(content=content)
-    response = client.text_detection(image=image)
-    texts = response.text_annotations
-
-    if len(texts)==0:
-        return None
-    for text in texts:
-        match=extract_time_str(text.description)
-        if type(match)==str:
-            break
-    return match
-
-
 # get_ts_google(r'D:\CPR_data_raw\P0\s1\canon\MVI_1007\1955.png')
 
 #308 : 46001.781   12:46:41.781
@@ -186,18 +161,6 @@ def move_masks_into_data_dir():
                 print(e)
                 logging.error(f'{session}: {e}')
 
-def get_ms_from_ts(timestamp):
-    # Split the timestamp into hours, minutes, seconds, and milliseconds
-    hours, minutes, seconds = timestamp.split(":")
-    seconds, milliseconds = seconds.split(".")
-
-    # Convert each part into milliseconds
-    hours_in_ms = int(hours) * 3600000
-    minutes_in_ms = int(minutes) * 60000
-    seconds_in_ms = int(seconds) * 1000
-    milliseconds = int(milliseconds)
-    total_milliseconds = hours_in_ms + minutes_in_ms + seconds_in_ms + milliseconds
-    return total_milliseconds
 
 
 def get_ts_from_images(root_path,original_fps=30,target_fps=1):
@@ -210,9 +173,9 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
         img_list=[]
 
         out_file=os.path.join(root_path,dir,'timestamps.txt')
-        # if os.path.exists(out_file):
-        #     print(f'{dir} is already processed. Continuing...')
-        #     continue
+        if os.path.exists(out_file):
+            print(f'{dir} is already processed. Continuing...')
+            continue
         print(f'processing: {dir}')
         img_files=utils.list_files(os.path.join(root_path,dir), 'jpg')
         img_files_int=[int(file.split('.')[0]) for file in img_files]
@@ -225,13 +188,20 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
         for i,img in enumerate(selected_img_files):
             # print(f'{i} out of {len(selected_img_files)} is done.',end='\r')
             img_file=os.path.join(root_path,dir,img)
-            ts=get_ts_google(img_file) 
-            if ts:
-                img_list.append(int(img.split('.')[0]))
-                # print(img,int(img.split('.')[0]))
-                ts_list.append(ts)
+            ts=-1
+            try:
+                while(ts==-1):
+                    ts=utils.get_ts_google(img_file) 
+                    if ts:
+                        img_list.append(int(img.split('.')[0]))
+                        # print(img,int(img.split('.')[0]))
+                        ts_list.append(ts)
+                    if ts==-1:
+                        time.sleep(1)
+            except Exception as e:
+                print(e)
 
-        ms_list=[get_ms_from_ts(ts) for ts in ts_list]
+        ms_list=[utils.get_ms_from_ts(ts) for ts in ts_list]
         intterp_ts_list=np.zeros(len(img_files_int))
         for i in range(len(img_list)):
             intterp_ts_list[img_list[i]-1]=ms_list[i]

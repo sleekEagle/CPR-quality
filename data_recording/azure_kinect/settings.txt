@@ -33,7 +33,7 @@ in the dir C:\Users\lahir\code\Open3D\examples\python\reconstruction_system\sens
 5. You can open the video with Azure kinect viewer. It did not work with VLC player
 
 #******how to extract images from the video******
-?
+
 
 
 #************************************************

@@ -1,0 +1,97 @@
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import utils
+import numpy as np
+import matplotlib.pyplot as plt
+
+skip=120
+
+def get_interp_ts_list(files):
+    process_ar=[0]*len(files)
+    ind_list,ts_list=[],[]
+    
+    for i in range(len(files)):
+        if i%skip!=0:
+            continue
+        # ts=None
+        # j=i
+        # while not ts:
+        #     color_file=os.path.join(color_dir,files[j])
+        #     ts=utils.get_ts_google(color_file)
+        #     j+=1
+        #     if j==i+skip:
+        #         break
+
+        ts=utils.get_ts_google(files[i])
+        if ts:
+            process_ar[i]=1
+            ind_list.append(i)
+            ts_list.append(ts)
+
+    ms_list=[utils.get_ms_from_ts(ts) for ts in ts_list]
+    intterp_ts_list=[0]*len(files)
+    for i,idx in enumerate(ind_list):
+        intterp_ts_list[idx]=ms_list[i]
+    #interpolate
+    ind_list.sort()
+    ind_list=np.array(ind_list)
+    for i in range(len(intterp_ts_list)):
+        if intterp_ts_list[i]==0:
+            if i<=ind_list[0]:
+                I1,I2=ind_list[0:2]
+            elif i>=ind_list[-1]:
+                I1,I2=ind_list[-2:]                
+            else:
+                I1=max(ind_list[ind_list<i])
+                I2=min(ind_list[ind_list>i])
+            T1,T2=intterp_ts_list[I1],intterp_ts_list[I2]
+            t_interp=T2 + (T2-T1)/(I2-I1)*(i-I2)
+            intterp_ts_list[i]=t_interp
+    return intterp_ts_list
+
+
+def get_ts_kinect():
+    root=r'D:\hand_depth_dataset\kinect'
+    dirs=utils.list_subdirectories(root) 
+    for dir in dirs:
+        print(dir)
+        out_file=os.path.join(root,dir,'ts.txt')
+        if os.path.exists(out_file):
+            print('ts file already exists. continuing...')
+            continue
+        color_dir=os.path.join(root,dir,'color')
+        files=utils.list_files(color_dir,'jpg')
+        files=[os.path.join(root,dir,'color',f) for f in files]
+        
+        intterp_ts_list=get_interp_ts_list(files)
+        #save to file
+        with open(out_file, 'w') as f:
+            for i in range(len(intterp_ts_list)):
+                f.write(str(files[i])+','+str(intterp_ts_list[i])+'\n')
+
+def get_ts_canon():
+    root=r'D:\hand_depth_dataset\canon'
+    dirs=utils.list_subdirectories(root)
+    for dir in dirs:
+        print(dir)
+        out_file=os.path.join(root,dir,'ts.txt')
+        if os.path.exists(out_file):
+            print('ts file already exists. continuing...')
+            continue
+        files=utils.list_files(os.path.join(root,dir),'jpg')
+        files=[os.path.join(root,dir,f) for f in files]
+        intterp_ts_list=get_interp_ts_list(files)
+        #save to file
+        with open(out_file, 'w') as f:
+            for i in range(len(intterp_ts_list)):
+                f.write(str(files[i])+','+str(intterp_ts_list[i])+'\n')
+
+if __name__ == "__main__":
+    get_ts_kinect()
+    print('kinect done.')
+    get_ts_canon()
+    print('canon done.')
+
+
+

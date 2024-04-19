@@ -413,6 +413,114 @@ def detect_kypts_mmpose(model_name,root_dir):
                     # cv2.destroyAllWindows()
                 json.dump(output, file)
 
+
+def detect_kypts_mmpose_canon(model_name,root_dir):
+    from mmdet.apis import init_detector, inference_detector,DetInferencer
+    from mmpose.apis import MMPoseInferencer
+    import numpy as np
+    from mmcv.image import imread
+    from PIL import Image
+    import cv2
+
+    models={
+        'RHD2D' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256',
+        'coco' : 'td-hm_hrnetv2-w18_dark-8xb32-210e_coco-wholebody-hand-256x256',
+        'onehand10k' : 'td-hm_hrnetv2-w18_dark-8xb64-210e_onehand10k-256x256'
+    }
+    if model_name == 'finetuned_RHD2D':
+        config_file = r'C:\Users\lahir\code\mmpose\configs\hand_2d_keypoint\topdown_heatmap\rhd2d\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr.py'
+        checkpoint_file = r'C:\Users\lahir\code\mmpose\work_dirs\td-hm_hrnetv2-w18_dark-8xb64-210e_rhd2d-256x256_cpr\best_AUC_epoch_110.pth'
+    elif 'RHD2D' in model_name:
+        model_str=models[model_name]
+        print(f'Using model: {model_str}')
+
+    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    for subj_dir in subj_dirs:
+        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+        for session_dir in session_dirs:
+            # if session_dir!=r'D:\CPR_extracted\P10\s_5':
+            #     continue
+            print(session_dir)
+            handbb_path=os.path.join(session_dir,'kinect','hand_bbs.json')
+            if os.path.exists(handbb_path):
+                with open(handbb_path, 'r') as file:
+                    hand_bbs = json.load(file)
+            else:
+                print(f'{handbb_path} does not exist')
+                continue
+            img_dir=os.path.join(session_dir,'kinect','color')
+            img_files=utils.list_files(img_dir,'jpg')
+            destination_directory=os.path.join(session_dir,'kinect','wrist_keypts')
+            if not os.path.exists(destination_directory):
+                os.makedirs(destination_directory)
+            destination_file=os.path.join(destination_directory,f'hand_keypts_{model_name}.json')
+            if os.path.exists(destination_file):
+                print(f'{destination_file} exists. Continuing...')
+                continue
+            if model_name=='finetuned_RHD2D':
+                inferencer = MMPoseInferencer(
+                pose2d=config_file,
+                pose2d_weights=checkpoint_file
+                )
+            elif 'RHD2D' in model_name:
+                inferencer = MMPoseInferencer(model_str)
+
+            with open(destination_file,'w') as file:
+                output={}
+                gray0=-1
+                for i,img_file in enumerate(img_files):
+                    print(f'Processing {i}/{len(img_files)}',end='\r')
+                    img_path=os.path.join(img_dir,img_file)
+                    img=cv2.imread(img_path)
+
+                    if 'RHD2D' in model_name:
+                        if hand_bbs[img_file.split('.')[0]]=='':
+                            hand_bb=last_bb
+                        else:
+                            hand_bb=[int(val) for val in hand_bbs[img_file.split('.')[0]].split(',')]
+                        last_bb=hand_bb
+                        pad=80
+                        img_crop= utils.crop_img_bb(img,hand_bb,pad)
+
+                        result_generator = inferencer(img_crop, show=False)
+                        result=next(result_generator)
+                        kypts=result['predictions'][0][0]['keypoints']
+                        x_vals=[val[0]+hand_bb[0]-pad for val in kypts]
+                        y_vals=[val[1]+hand_bb[1]-pad for val in kypts]
+                    elif model_name=='tracking':
+                        gray=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        if i==0:
+                            gray0=gray
+                            p=utils.select_points(gray)
+                            point = np.array([[p[:2]]], dtype=np.float32)
+                            x_vals=[int(p[0])]
+                            y_vals=[int(p[1])]
+                        else:
+                            # Parameters for Lucas-Kanade optical flow
+                            lk_params = {
+                                'winSize': (15, 15),
+                                'maxLevel': 2,
+                                'criteria': (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03)
+                            }
+                            new_points, status, _ = cv2.calcOpticalFlowPyrLK(gray0, gray, point, None, **lk_params)
+                            x, y = new_points.ravel()
+                            x_vals=[int(x)]
+                            y_vals=[int(y)]
+                            # cv2.circle(gray, (int(x), int(y)), 5, (0, 255, 0), -1)
+                            # utils.show_img(gray)
+                            # continue
+
+                    sub_dict={"x":x_vals,"y":y_vals}
+                    output[img_file.split('.')[0]]=sub_dict
+
+                    # Display the image
+                    # for k in kypts:
+                    #     cv2.circle(img_crop, (int(k[0]), int(k[1])), 5, (0, 255, 0), -1)
+                    # cv2.imshow('Image', img_crop)
+                    # cv2.waitKey(0)
+                    # cv2.destroyAllWindows()
+                json.dump(output, file)
+
 #object detection
 def get_personBB(root_dir):
     root_dir='D:\CPR_data_raw'

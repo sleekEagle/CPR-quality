@@ -413,6 +413,52 @@ def extract_smartwatch_data(data_path,conf):
         output['grav_interp']=grav_interp
         output['ts']=valid_out_ts
         return output,current_freq
+    
+
+'''
+use google vision to detect ts from an image
+'''
+
+def get_ms_from_ts(timestamp):
+    # Split the timestamp into hours, minutes, seconds, and milliseconds
+    hours, minutes, seconds = timestamp.split(":")
+    try:
+        seconds, milliseconds = seconds.split(".")
+    except ValueError:
+        seconds, milliseconds = seconds.split(" ")
+
+    # Convert each part into milliseconds
+    hours_in_ms = int(hours) * 3600000
+    minutes_in_ms = int(minutes) * 60000
+    seconds_in_ms = int(seconds) * 1000
+    milliseconds = int(milliseconds)
+    total_milliseconds = hours_in_ms + minutes_in_ms + seconds_in_ms + milliseconds
+    return total_milliseconds
+
+def extract_time_str(txt):
+    import re
+    x = re.findall("[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]", txt)
+    if len(x)>0:
+        return x[0]
+    else: 
+         return None
+
+def get_ts_google(image_path):
+    from google.cloud import vision
+    client = vision.ImageAnnotatorClient()
+    with open(image_path, "rb") as image_file:
+            content = image_file.read()
+    image = vision.Image(content=content)
+    response = client.text_detection(image=image)
+    texts = response.text_annotations
+
+    if len(texts)==0:
+        return None
+    for text in texts:
+        match=extract_time_str(text.description)
+        if type(match)==str:
+            break
+    return match
 
 
 
