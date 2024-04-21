@@ -291,6 +291,30 @@ def select_points(image):
     return coordinates
 
 
+def show_img_overlay(i1,i2,alpha=0.3):
+    import cv2
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    i1=i1.astype(np.float32)
+    i2=i2.astype(np.float32)
+    i1=i1/i1.max()
+    i2=i2/i2.max()
+    #blur images
+    i1=cv2.GaussianBlur(i1, (0, 0), sigmaX=1, sigmaY=1)
+    i2=cv2.GaussianBlur(i2, (0, 0), sigmaX=1, sigmaY=1)
+    i2[i2>0]=1
+    i1[i1>0]=1
+
+    color_mask1 = np.zeros((*i1.shape, 3), dtype=np.uint8)
+    color_mask2 = np.zeros((*i2.shape, 3), dtype=np.uint8)
+    color_mask1[i1 == 1] = [0, 0, 255]  # Red
+    color_mask2[i2 == 1] = [255, 0, 0]  # Blue
+    blended_image = cv2.addWeighted(color_mask1, alpha, color_mask2, 1 - alpha, 0)
+    plt.imshow(blended_image)
+    plt.show()
+
+
 #crop an image given a bounding box and padding
 def crop_img_bb(img,hand_bb,pad):
     h,w,_=img.shape

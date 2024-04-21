@@ -290,6 +290,8 @@ def sync_imgs():
             results = base_model.predict(closest_file)
             canon_bb=utils.get_bb(results)
 
+            # utils.draw_bb(closest_file,canon_bb)
+
             if (len(lower_bb)*len(upper_bb)*len(canon_bb))==0:
                 print('no hand detected')
                 continue
@@ -373,64 +375,75 @@ def sync_imgs():
                     continue
                 canon_proj_thres[int(x[i]),int(y[i])]=1
             # canon_proj_thres=canon_proj_thres.astype(np.uint8)
-            density_map_blurred = cv2.GaussianBlur(canon_proj_thres, (0, 0), sigmaX=2, sigmaY=2)
-            density_map_blurred[density_map_blurred>0]=1
-            density_map_blurred=density_map_blurred.astype(np.uint8)
+            # density_map_blurred = cv2.GaussianBlur(canon_proj_thres, (0, 0), sigmaX=2, sigmaY=2)
+            # density_map_blurred[density_map_blurred>0]=1
+            canon_proj_thres=canon_proj_thres.astype(np.uint8)
             h,w=canon_mask.shape
-            h_,w_=density_map_blurred.shape
+            h_,w_=canon_proj_thres.shape
             # Pad the density map to match the size of the canon mask
             pad_h = (h - h_)
             pad_w = (w - w_)
-            density_map_blurred = np.pad(density_map_blurred, ((0, pad_h), (0, pad_w)), mode='constant', constant_values=0)
+            canon_proj_thres = np.pad(canon_proj_thres, ((0, pad_h), (0, pad_w)), mode='constant', constant_values=0)
 
+            # scale  and roughly align images
+
+            def opt_scale(source_img,target_img):
+                x1,y1=np.where(source_img)
+                xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
+                x2,y2=np.where(target_img)
+                xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
+                x_scale=xlen1/xlen2
+                y_scale=ylen1/ylen2
+                cropped_img=target_img[x2.min():x2.max(),y2.min():y2.max()]
+                cropped_img=cv2.resize(cropped_img,(int(ylen2*y_scale),int(xlen2*x_scale)))
+                aligned_img=np.zeros_like(source_img)
+                aligned_img[x1.max()-cropped_img.shape[0]:x1.max(),y1.min():y1.min()+cropped_img.shape[1]]=cropped_img
+                return aligned_img, (x_scale+y_scale)*0.5
             
-            plt.imshow(canon_proj_thres)
-            plt.imshow(canon_mask)
-            plt.imshow(density_map_blurred)
+            def opt_rotate(source_img,target_img):
+                from scipy.optimize import minimize
+                from skimage.transform import rotate
 
-            #optimize scale
-            x1,y1=np.where(canon_mask)
-            xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
-            x2,y2=np.where(density_map_blurred)
-            xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
-            x_scale=xlen1/xlen2
-            y_scale=ylen1/ylen2
-
+                def cost_function(angle, image_to_rotate, reference_image):
+                    rotated_image = rotate(image_to_rotate, angle[0], resize=False, mode='edge')
+                    difference = np.abs(reference_image - rotated_image)
+                    cost = np.sum(difference)
+                    return cost
+                initial_guess = [0]
+                result = minimize(cost_function, initial_guess, args=(target_img, source_img), method='Powell')
+                best_angle = result.x
+                aligned_image = rotate(target_img, best_angle[0], resize=False, mode='edge')
+                # utils.show_img_overlay(target_img,aligned_image)
+                return aligned_image,best_angle
             
-
-            image1=density_map_blurred
-            image2=canon_mask
-            def scale_error(scale,image1,image2):
-                scaled_image1=cv2.resize(image1,(int(image1.shape[1]*scale),int(image1.shape[0]*scale)))
-                return np.mean(((scaled_image1.sum()*1e-7-image2.sum()*1e-7))**2)
-
-            result=minimize(scale_error,1,args=(image1,image2),method='Powell')
-            plt.imshow(image2)
-
-
-
-
-
-
-            plt.imshow(aligned_image)
-            plt.imshow(canon_mask)
-
-
+            #aligne by translation
+            def opt_trans(source_img,target_img):
+                source_img[source_img>0]=1
+                target_img[target_img>0]=1
+                x1,y1=np.where(source_img)
+                xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
+                x2,y2=np.where(target_img)
+                xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
+                aligned_image=np.zeros_like(source_img)
+                xmin=max(0,x1.max()-xlen2)
+                xlen=x1.max()-xmin
+                ymax=min(source_img.shape[1],y1.min()+ylen2)
+                ylen=ymax-y1.min()
+                aligned_image[xmin:x1.max(),y1.min():ymax]=target_img[x2.min():x2.min()+xlen,y2.min():y2.min()+ylen]
+                x_move=abs(x2.max()-x1.max())
+                y_move=abs(y2.min()-y1.min())
+                return aligned_image,x_move,y_move
 
 
-
-
-
-
-
-
-
-
-
-
-            plt.imshow(canon_img)
-            plt.show()
-            print(closest_file)
+            aligned_img=canon_proj_thres
+            for i in range(10):
+                aligned_img,scale=opt_scale(canon_mask,aligned_img)
+                print('scale: ',scale)
+                aligned_img,angle=opt_rotate(canon_mask,aligned_img)
+                print('angle: ',angle)
+                aligned_img,x_move,y_move=opt_trans(canon_mask,aligned_img)
+                print('movement: ',(x_move,y_move))
+            utils.show_img_overlay(canon_mask,aligned_img)
 
             # X,Y,Z=np.array(pcd_lower.points).T
             # x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
