@@ -5,8 +5,31 @@ import utils
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
+from autodistill_grounding_dino import GroundingDINO
+from autodistill.detection import CaptionOntology
+from segment_anything import sam_model_registry
+from segment_anything import SamAutomaticMaskGenerator
+from segment_anything import SamPredictor
+import torch
+import cv2
+import open3d as o3d
+from scipy.spatial.transform import Rotation as R
+from scipy.optimize import minimize
+
 
 skip=120
+kinect_root=r'D:\hand_depth_dataset\kinect'
+canon_root=r'D:\hand_depth_dataset\canon'
+#object detection model
+base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))
+
+#hand segmentation model
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+MODEL_TYPE = "vit_h"
+CHECKPOINT_PATH=r'C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth'
+sam = sam_model_registry[MODEL_TYPE](checkpoint=CHECKPOINT_PATH)
+sam.to(device=DEVICE)
+mask_predictor = SamPredictor(sam)
 
 def get_interp_ts_list(files):
     process_ar=[0]*len(files)
@@ -53,17 +76,16 @@ def get_interp_ts_list(files):
 
 
 def get_ts_kinect():
-    root=r'D:\hand_depth_dataset\kinect'
-    dirs=utils.list_subdirectories(root) 
+    dirs=utils.list_subdirectories(kinect_root) 
     for dir in dirs:
         print(dir)
-        out_file=os.path.join(root,dir,'ts.txt')
+        out_file=os.path.join(kinect_root,dir,'ts.txt')
         if os.path.exists(out_file):
             print('ts file already exists. continuing...')
             continue
-        color_dir=os.path.join(root,dir,'color')
+        color_dir=os.path.join(kinect_root,dir,'color')
         files=utils.list_files(color_dir,'jpg')
-        files=[os.path.join(root,dir,'color',f) for f in files]
+        files=[os.path.join(kinect_root,dir,'color',f) for f in files]
         
         intterp_ts_list=get_interp_ts_list(files)
         #save to file
@@ -72,16 +94,15 @@ def get_ts_kinect():
                 f.write(str(files[i])+','+str(intterp_ts_list[i])+'\n')
 
 def get_ts_canon():
-    root=r'D:\hand_depth_dataset\canon'
-    dirs=utils.list_subdirectories(root)
+    dirs=utils.list_subdirectories(canon_root)
     for dir in dirs:
         print(dir)
-        out_file=os.path.join(root,dir,'ts.txt')
+        out_file=os.path.join(canon_root,dir,'ts.txt')
         if os.path.exists(out_file):
             print('ts file already exists. continuing...')
             continue
-        files=utils.list_files(os.path.join(root,dir),'jpg')
-        files=[os.path.join(root,dir,f) for f in files]
+        files=utils.list_files(os.path.join(canon_root,dir),'jpg')
+        files=[os.path.join(canon_root,dir,f) for f in files]
         intterp_ts_list=get_interp_ts_list(files)
         #save to file
         with open(out_file, 'w') as f:
@@ -93,10 +114,89 @@ def get_ms_ts(file):
     if ts:
         ts=utils.get_ms_from_ts(ts)
     return ts
+
+def get_seg(file,bb):
+    image = cv2.imread(file)
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    area=(bb[3]-bb[1])*(bb[2]-bb[0])
+
+    bb_=[int(b) for b in bb]
+
+    mask_predictor = SamPredictor(sam)
+    mask_predictor.set_image(image_rgb)
+
+    if area<200000:
+        input_point = np.array([[(bb_[0]+bb_[2])*0.5, (bb_[1]+bb_[3])*0.5]])
+        input_label = np.array([1])
+        mask, scores, logits = mask_predictor.predict(
+        point_coords=input_point,
+        point_labels=input_label,
+        multimask_output=False,
+        )
+        mask=np.squeeze(mask)
+        #remove mask outside the bb
+        anti_mask=np.zeros_like(mask)
+        anti_mask[bb_[1]:bb_[3],bb_[0]:bb_[2]]=1
+        mask=mask*anti_mask
+    else:
+        mask_predictor.set_image(image_rgb)
+        mask, scores, logits = mask_predictor.predict(
+            box=np.array(bb_),
+            multimask_output=False
+            )
+        mask=np.squeeze(mask)
+
+
+    # bb_=[int(b) for b in bb]
+    # pad=0
+    # bb_=[bb_[0]-pad,bb_[1]-pad,bb_[2]+pad,bb_[3]+pad]
+    # # img_cropped=utils.crop_img_bb(image_rgb,bb,50)
+    # # utils.draw_bb(file,bb)
+
+    # mask_predictor.set_image(image_rgb)
+    # masks, scores, logits = mask_predictor.predict(
+    #     box=np.array(bb_),
+    #     multimask_output=True
+    #     )
+
+
+    mask=mask*255
+    mask=mask.astype(np.uint8)
+
+    # mask=np.any(mask, axis=0)*255
+    # mask=mask.astype(np.uint8)
+    # plt.imshow(mask*anti_mask)
+    return mask
+
+def get_point_cloud(file,mask=None):
+    depth_file=os.path.join(file.replace('jpg','png').replace('color','depth'))
+    depth_img = cv2.imread(depth_file, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+    if mask is not None:
+        depth_img=depth_img*(mask/mask.max())
+    d=np.argwhere(depth_img>0)
+    x,y=d[:,0],d[:,1]
+    depth_valus=depth_img[x,y]
+    X,Y,Z=utils.get_XYZ_kinect(x,y,depth_valus)
+
+    # points = np.vstack((X, Y, Z)).T
+    # pcd_lower = o3d.geometry.PointCloud()
+    # pcd_lower.points = o3d.utility.Vector3dVector(points)
+    # o3d.visualization.draw_geometries([pcd_lower], window_name="Aligned Point Clouds")
+
+
+    return X,Y,Z
+
+def get_centroid(image):
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Assuming the largest contour corresponds to the object of interest
+    largest_contour = max(contours, key=cv2.contourArea)
+    M = cv2.moments(largest_contour)
+    cx = int(M["m10"] / M["m00"])
+    cy = int(M["m01"] / M["m00"])
+    return np.array([cx, cy])
             
 def sync_imgs():
-    kinect_root=r'D:\hand_depth_dataset\kinect'
-    canon_root=r'D:\hand_depth_dataset\canon'
     dirs=utils.list_subdirectories(kinect_root)
     for dir in dirs:
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
@@ -108,7 +208,6 @@ def sync_imgs():
         indices = list(range(0, len(kinect_files), 30))
         selected_kinect_files=[k for i,k in enumerate(kinect_files) if i in indices]
         selected_kinect_ts_list=np.array([k for i,k in enumerate(kinect_ts) if i in indices])
-
 
         #get all canon files and ts
         part=dir.split('_')[0]
@@ -124,6 +223,8 @@ def sync_imgs():
             canon_ts_list.extend(canon_ts)
 
         for ind in indices:
+            if ind<1000:
+                continue
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
             #find the closest canon image
@@ -170,13 +271,192 @@ def sync_imgs():
                 k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
+            while k_lower_ts>c_ts:
+                kinect_closest_lower_idx-=1
+                k_lower_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_lower_idx])
+                ts=get_ms_ts(k_lower_file)
+                k_lower_ts = ts if ts else kinect_ts[kinect_closest_lower_idx]
 
-            assert k_lower_ts<=c_ts<=k_upper_ts , 'timestampts not in order'
+            assert k_lower_ts<=c_ts<=k_upper_ts , 'timestamps not in order'
             
             print(k_lower_ts,k_ts,k_upper_ts,c_ts)
             print('lower , upper:',kinect_closest_lower_idx,kinect_closest_upper_idx)
+            
+            #detect bbs
+            results = base_model.predict(k_lower_file)
+            lower_bb=utils.get_bb(results)
+            results = base_model.predict(k_upper_file)
+            upper_bb=utils.get_bb(results)
+            results = base_model.predict(closest_file)
+            canon_bb=utils.get_bb(results)
 
-        pass
+            if (len(lower_bb)*len(upper_bb)*len(canon_bb))==0:
+                print('no hand detected')
+                continue
+                
+            #detect hand segmentation
+            lower_mask=get_seg(k_lower_file,lower_bb)
+            upper_mask=get_seg(k_upper_file,upper_bb)
+            canon_mask=get_seg(closest_file,canon_bb)
+
+            # utils.draw_bb(closest_file,canon_bb)
+
+            # plt.imshow(upper_mask)
+
+            # Read the image
+            X_lower,Y_lower,Z_lower=get_point_cloud(k_lower_file,lower_mask)
+            X_upper,Y_upper,Z_upper=get_point_cloud(k_upper_file,upper_mask)
+
+            points = np.vstack((X_lower, Y_lower, Z_lower)).T
+            pcd_lower = o3d.geometry.PointCloud()
+            pcd_lower.points = o3d.utility.Vector3dVector(points)
+
+            # X,Y,Z=np.array(pcd_lower.points).T
+            # x,y=utils.project_3d_to_2d(X,Y,Z,utils.kinect_k)
+            # kinect_img=np.zeros_like(lower_mask)
+            # for i in range(len(x)):
+            #     kinect_img[int(x[i]),int(y[i])]=1
+            # plt.imshow(kinect_img)
+
+
+            points = np.vstack((X_upper, Y_upper, Z_upper)).T
+            pcd_upper = o3d.geometry.PointCloud()
+            pcd_upper.points = o3d.utility.Vector3dVector(points)
+
+            init_transformation = np.eye(4)
+            icp_result = o3d.pipelines.registration.registration_icp(
+            pcd_lower, pcd_upper, max_correspondence_distance=0.02,  # Set according to your data scale
+            init=init_transformation,
+            estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+            criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=2000)
+            )
+            transformation_matrix = icp_result.transformation
+            print("Transformation Matrix:")
+            print(transformation_matrix)
+            
+            # pcd_lower.transform(transformation_matrix)
+            # o3d.visualization.draw_geometries([pcd_lower, pcd_upper], window_name="Aligned Point Clouds")
+
+
+            frac=(c_ts-k_lower_ts)/(k_upper_ts-k_lower_ts)
+            assert frac>0, 'fraction should be positive'
+
+            Rot=transformation_matrix[:3,:3]
+            T=transformation_matrix[:3,3]
+
+            T_new=T*frac
+
+            r = R.from_matrix(Rot.copy())
+            euler_angles = r.as_euler('xyz', degrees=True)
+            new_angles=euler_angles*frac
+            new_rot=R.from_euler('xyz', new_angles, degrees=True).as_matrix()
+
+            T_int = np.eye(4)
+            T_int[:3,:3]=new_rot
+            T_int[:3,3]=T_new
+            pcd_lower.transform(T_int)
+            #transform into canon coordinate frame
+            pcd_lower.transform(utils.kinect_to_canon)
+            #project the point cloud into the canon image
+            X,Y,Z=np.array(pcd_lower.points).T
+
+            # points = np.vstack((X, Y, Z)).T
+            # pcd_lower = o3d.geometry.PointCloud()
+            # pcd_lower.points = o3d.utility.Vector3dVector(points)
+            # o3d.visualization.draw_geometries([pcd_lower], window_name="Aligned Point Clouds")
+
+
+            x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
+            canon_proj_thres=np.zeros(utils.canon_original_res)
+            for i in range(len(x)):
+                if int(x[i])<0 or int(y[i])<0 or int(y[i])>lower_mask.shape[1]-1 or int(x[i])>lower_mask.shape[0]-1:
+                    continue
+                canon_proj_thres[int(x[i]),int(y[i])]=1
+            # canon_proj_thres=canon_proj_thres.astype(np.uint8)
+            density_map_blurred = cv2.GaussianBlur(canon_proj_thres, (0, 0), sigmaX=2, sigmaY=2)
+            density_map_blurred[density_map_blurred>0]=1
+            density_map_blurred=density_map_blurred.astype(np.uint8)
+            h,w=canon_mask.shape
+            h_,w_=density_map_blurred.shape
+            # Pad the density map to match the size of the canon mask
+            pad_h = (h - h_)
+            pad_w = (w - w_)
+            density_map_blurred = np.pad(density_map_blurred, ((0, pad_h), (0, pad_w)), mode='constant', constant_values=0)
+
+            
+            plt.imshow(canon_proj_thres)
+            plt.imshow(canon_mask)
+            plt.imshow(density_map_blurred)
+
+            #optimize scale
+            x1,y1=np.where(canon_mask)
+            xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
+            x2,y2=np.where(density_map_blurred)
+            xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
+            x_scale=xlen1/xlen2
+            y_scale=ylen1/ylen2
+
+            
+
+            image1=density_map_blurred
+            image2=canon_mask
+            def scale_error(scale,image1,image2):
+                scaled_image1=cv2.resize(image1,(int(image1.shape[1]*scale),int(image1.shape[0]*scale)))
+                return np.mean(((scaled_image1.sum()*1e-7-image2.sum()*1e-7))**2)
+
+            result=minimize(scale_error,1,args=(image1,image2),method='Powell')
+            plt.imshow(image2)
+
+
+
+
+
+
+            plt.imshow(aligned_image)
+            plt.imshow(canon_mask)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            plt.imshow(canon_img)
+            plt.show()
+            print(closest_file)
+
+            # X,Y,Z=np.array(pcd_lower.points).T
+            # x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
+            # kinect_img=np.zeros_like(lower_mask)
+            # for i in range(len(x)):
+            #     if int(x[i])<0 or int(y[i])<0 or int(y[i])>lower_mask.shape[1]-1 or int(x[i])>lower_mask.shape[0]-1:
+            #         continue
+            #     kinect_img[int(x[i]),int(y[i])]=1
+            # plt.imshow(kinect_img)
+            # plt.show()
+            pass
+            
+            # o3d.visualization.draw_geometries([pcd_lower], window_name="Aligned Point Clouds")
+
+            # utils.transform_kinect_to_canon()
+
+            # 
+            # o3d.visualization.draw_geometries([pcd_lower, pcd_upper], window_name="Aligned Point Clouds")
+
+            # plt.imshow(lower_mask)
+            # x,y=utils.project_3d_to_2d(X_lower,Y_lower,Z_lower)
+            # depth_img=np.zeros_like(lower_mask)
+            # for i in range(len(x)):
+            #     depth_img[int(x[i]),int(y[i])]=1
+
+            # plt.imshow(depth_img)
 
 
 if __name__ == "__main__":

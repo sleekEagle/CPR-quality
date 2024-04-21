@@ -2,13 +2,42 @@ from datetime import datetime
 import os
 import shutil
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
-def get_XYZ(x,y,depth):
-    k=np.array([[615.873673811006,0,640.803032851225],[0,615.918359977960,365.547839233105],[0,0,1]])
-    X=(x-k[0,2])*depth/k[0,0]
-    Y=(y-k[1,2])*depth/k[1,1]
+kinect_k=np.array([[615.873673811006,0,640.803032851225],[0,615.918359977960,365.547839233105],[0,0,1]])
+canon_k=np.array([[1646.6,0,634.937559585530],[0,1647.3,361.861198847709],[0,0,1]])
+# kinect_to_canon=np.array([[0.994175460468381,0.0116430224819419	, 0.107142866444612	, 99.0452384762955],[-0.0111777850064868,0.999925315320648,-0.00494175103084695,-34.4109036460110],[-0.107192401432339,0.00371534768051576,0.994231353995025,29.1211050034710],[0,0,0,1]])
+stereo_R=np.array([[0.994175460468381,0.0116430224819419,0.107142866444612],[-0.0111777850064868,0.999925315320648,-0.00494175103084695],[-0.107192401432339,0.00371534768051576,0.994231353995025]])
+stereo_T=np.array([-99.0452384762955,34.4109036460110,-29.1211050034710])
+kinect_to_canon=np.eye(4)
+
+# r = R.from_matrix(stereo_R.copy())
+# euler_angles = r.as_euler('xyz', degrees=True)
+# new_angles=euler_angles
+# new_rot=R.from_euler('xyz', new_angles, degrees=True).as_matrix()
+
+kinect_to_canon[:3,:3]=stereo_R
+kinect_to_canon[:3,3]=stereo_T*-1
+canon_original_res=(720,1280)
+
+def get_XYZ_kinect(x,y,depth):
+    X=(x-kinect_k[0,2])*depth/kinect_k[0,0]
+    Y=(y-kinect_k[1,2])*depth/kinect_k[1,1]
     Z=depth
     return X,Y,Z
+
+'''
+project 3D points to 2D using the camera matrix K
+'''
+def project_3d_to_2d(X,Y,Z,K):
+    x=K[0,0]*X/Z+K[0,2]
+    y=K[1,1]*Y/Z+K[1,2]
+    return x,y
+
+def transform_kinect_to_canon(X,Y,Z):
+    XYZ=np.array([X,Y,Z,1])
+    XYZ_canon=np.dot(kinect_to_canon,XYZ)
+    return XYZ_canon[:3]
 
 def get_float_time(time_object):
     time_float = float(time_object.hour * 3600 
@@ -204,6 +233,17 @@ def plot_points(image,points):
     for point in points:
         cv2.circle(image, point, 5, (0, 255, 0), -1) 
     return image
+
+
+def draw_bb(file,bb):
+    import cv2
+    image = cv2.imread(file)
+    # Draw bounding box on the image
+    cv2.rectangle(image, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 2)
+    # Display the image
+    cv2.imshow("Image with Bounding Box", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 def show_img(image,show_coords=False):
@@ -459,6 +499,18 @@ def get_ts_google(image_path):
         if type(match)==str:
             break
     return match
+
+
+#get bounding box from grounding dino results
+def get_bb(results):
+    bbx_list=results.xyxy
+    conf_list=results.confidence
+    if len(conf_list)==0:
+        return []
+    max_conf_arg=np.argmax(conf_list)
+    bb=bbx_list[max_conf_arg]
+    return bb
+
 
 
 
