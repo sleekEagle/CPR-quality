@@ -314,10 +314,20 @@ def show_img_overlay(i1,i2,alpha=0.3):
     plt.imshow(blended_image)
     plt.show()
 
+def get_img_from_points(h,w,points):
+    import matplotlib.pyplot as plt
+    target_img = np.zeros((h,w))
+    for point in points:
+        x, y = point
+        if x>=0 and x<h and y>=0 and y<w:
+            target_img[int(x), int(y)]=1
+    return target_img
+
 
 #crop an image given a bounding box and padding
 def crop_img_bb(img,hand_bb,pad):
     h,w,_=img.shape
+    hand_bb=[int(bb) for bb in hand_bb]
     img_crop=img[max(0,hand_bb[1]-pad):min(h,hand_bb[3]+pad),max(0,hand_bb[0]-pad):min(w,hand_bb[2]+pad)]
     return img_crop
 
