@@ -235,15 +235,17 @@ def plot_points(image,points):
     return image
 
 
-def draw_bb(file,bb):
+def draw_bb(file,bb,show=True):
     import cv2
     image = cv2.imread(file)
     # Draw bounding box on the image
     cv2.rectangle(image, (int(bb[0]), int(bb[1])), (int(bb[2]), int(bb[3])), (0, 255, 0), 2)
-    # Display the image
-    cv2.imshow("Image with Bounding Box", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if show:
+        # Display the image
+        cv2.imshow("Image with Bounding Box", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    return image
 
 
 def show_img(image,show_coords=False):
@@ -291,7 +293,7 @@ def select_points(image):
     return coordinates
 
 
-def show_img_overlay(i1,i2,alpha=0.3):
+def show_img_overlay(i1,i2,alpha=0.3,show=True):
     import cv2
     import numpy as np
     import matplotlib.pyplot as plt
@@ -311,8 +313,10 @@ def show_img_overlay(i1,i2,alpha=0.3):
     color_mask1[i1 == 1] = [0, 0, 255]  # Red
     color_mask2[i2 == 1] = [255, 0, 0]  # Blue
     blended_image = cv2.addWeighted(color_mask1, alpha, color_mask2, 1 - alpha, 0)
-    plt.imshow(blended_image)
-    plt.show()
+    if show:
+        plt.imshow(blended_image)
+        plt.show()
+    return blended_image
 
 def get_img_from_points(h,w,points):
     import matplotlib.pyplot as plt

@@ -245,6 +245,22 @@ def rotate_point(origin, point, angle):
     new_y += oy
 
     return new_x, new_y
+
+
+import tkinter as tk
+from tkinter import messagebox
+
+# Function to be called when the first button is pressed
+def on_accept_press():
+    global save_data
+    save_data = True
+    root.destroy()
+
+# Function to be called when the second button is pressed
+def on_reject_press():
+    global save_data
+    save_data = False
+    root.destroy()
             
 def sync_imgs():
     out_path=r'D:/hand_depth_extracted'
@@ -275,8 +291,13 @@ def sync_imgs():
             canon_ts_list.extend(canon_ts)
 
         for ind in indices:
-            if ind<890:
-                continue
+            canon_color_file=os.path.join(out_path,'canon','color',part_name+'_'+str(ind)+'.jpg')
+            canon_depth_file=os.path.join(out_path,'canon','depth',part_name+'_'+str(ind)+'.png')
+            canon_seg_file=os.path.join(out_path,'canon','seg',part_name+'_'+str(ind)+'.png')
+            kinect_color_file=os.path.join(out_path,'kinect','color',part_name+'_'+str(ind)+'.jpg')
+            kinect_depth_file=os.path.join(out_path,'kinect','depth',part_name+'_'+str(ind)+'.png')
+            kinect_seg_file=os.path.join(out_path,'kinect','seg',part_name+'_'+str(ind)+'.png')
+
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
             #find the closest canon image
@@ -368,14 +389,6 @@ def sync_imgs():
             pcd_lower = o3d.geometry.PointCloud()
             pcd_lower.points = o3d.utility.Vector3dVector(points)
 
-            # X,Y,Z=np.array(pcd_lower.points).T
-            # x,y=utils.project_3d_to_2d(X,Y,Z,utils.kinect_k)
-            # kinect_img=np.zeros_like(lower_mask)
-            # for i in range(len(x)):
-            #     kinect_img[int(x[i]),int(y[i])]=1
-            # plt.imshow(kinect_img)
-
-
             points = np.vstack((X_upper, Y_upper, Z_upper)).T
             pcd_upper = o3d.geometry.PointCloud()
             pcd_upper.points = o3d.utility.Vector3dVector(points)
@@ -390,13 +403,9 @@ def sync_imgs():
             transformation_matrix = icp_result.transformation
             print("Transformation Matrix:")
             print(transformation_matrix)
-            
-            # pcd_lower.transform(transformation_matrix)
-            # o3d.visualization.draw_geometries([pcd_lower, pcd_upper], window_name="Aligned Point Clouds")
-
 
             frac=(c_ts-k_lower_ts)/(k_upper_ts-k_lower_ts)
-            assert frac>0, 'fraction should be positive'
+            assert frac>=0, 'fraction should be positive'
 
             Rot=transformation_matrix[:3,:3]
             T=transformation_matrix[:3,3]
@@ -443,104 +452,16 @@ def sync_imgs():
             canon_proj_thres = np.pad(canon_proj_thres, ((0, pad_h), (0, pad_w)), mode='constant', constant_values=0)
             canon_proj = np.pad(canon_proj, ((0, pad_h), (0, pad_w)), mode='constant', constant_values=0)
 
-            # scale  and roughly align images
-            def opt_scale(source_img,target_img,target_depth):
-                x1,y1=np.where(source_img)
-                xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
-                x2,y2=np.where(target_img>0)
-                xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
-                x_scale=xlen1/xlen2
-                y_scale=ylen1/ylen2
-                cropped_img=target_img[x2.min():x2.max(),y2.min():y2.max()]
-                cropped_img=cv2.resize(cropped_img,(int(ylen2*y_scale),int(xlen2*x_scale)))
-                aligned_img=np.zeros_like(source_img)
-                aligned_img[x1.max()-cropped_img.shape[0]:x1.max(),y1.min():y1.min()+cropped_img.shape[1]]=cropped_img
-
-                cropped_depth=target_depth[x2.min():x2.max(),y2.min():y2.max()]
-                cropped_depth=resize_sparse_points(cropped_depth, (int(xlen2*x_scale), int(ylen2*y_scale)))
-                # cropped_depth=cv2.resize(cropped_depth,(int(ylen2*y_scale),int(xlen2*x_scale)),cv2.INTER_NEAREST)
-                aligned_depth=np.zeros_like(source_img,dtype=np.float64)
-                aligned_depth[x1.max()-cropped_img.shape[0]:x1.max(),y1.min():y1.min()+cropped_img.shape[1]]=cropped_depth
-                return aligned_img, aligned_depth,(x_scale+y_scale)*0.5
-            
-            def opt_scale_area(source_img,target_img,target_depth):
-                area1=np.sum(source_img>0)
-                area2=np.sum(target_img>0)
-                scale=(area1/area2)**0.5
-                x1,y1=np.where(source_img)
-                xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
-                x2,y2=np.where(target_img>0)
-                xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
-                x_scale=xlen1/xlen2
-                y_scale=ylen1/ylen2
-                cropped_img=target_img[x2.min():x2.max(),y2.min():y2.max()]
-                cropped_img=cv2.resize(cropped_img,(int(cropped_img.shape[1]*scale),int(cropped_img.shape[0]*scale)))
-                aligned_img=np.zeros_like(source_img)
-                aligned_img[0:cropped_img.shape[0],0:cropped_img.shape[1]]=cropped_img
-
-                cropped_depth=target_depth[x2.min():x2.max(),y2.min():y2.max()]
-                cropped_depth=resize_sparse_points(cropped_depth, (int(cropped_depth.shape[1]*scale),int(cropped_depth.shape[0]*scale)))
-                # cropped_depth=cv2.resize(cropped_depth,(int(ylen2*y_scale),int(xlen2*x_scale)),cv2.INTER_NEAREST)
-                aligned_depth=np.zeros_like(source_img,dtype=np.float64)
-                aligned_depth[0:cropped_depth.shape[0],0:cropped_depth.shape[1]]=cropped_depth
-                return aligned_img, aligned_depth,scale
-            
-            def opt_rotate(source_img,target_img,target_depth):
-                from scipy.optimize import minimize
-                from skimage.transform import rotate
-
-                def cost_function(angle, image_to_rotate, reference_image):
-                    rotated_image = rotate(image_to_rotate, angle[0], resize=False, mode='edge')
-                    difference = np.abs(reference_image - rotated_image)
-                    cost = np.sum(difference)
-                    return cost
-                initial_guess = [0]
-                result = minimize(cost_function, initial_guess, args=(target_img, source_img), method='Powell')
-                best_angle = result.x
-                aligned_image = rotate(target_img, best_angle[0], resize=False, mode='edge')
-                # aligned_depth = rotate(target_depth, best_angle[0], resize=False, mode='edge')
-                points=np.argwhere(target_depth>0)
-                depths=[target_depth[p[0],p[1]] for p in points]
-                image_width,image_height=target_img.shape
-                image_center = (image_width / 2, image_height / 2)
-                rotated_points = [rotate_point(image_center, point, best_angle) for point in points]
-                aligned_depth=np.zeros_like(target_depth,dtype=np.float64)
-                for i,p in enumerate(rotated_points):
-                    try:
-                        aligned_depth[int(rotated_points[i][0]),int(rotated_points[i][1])]=depths[i]
-                    except Exception as e:
-                        print('exception in rotating depth: ',e)
-                # utils.show_img_overlay(target_img,aligned_image)
-                return aligned_image,aligned_depth,best_angle
-            
-            #aligne by translation
-            def opt_trans(source_img,target_img,target_depth):
-                source_img[source_img>0]=1
-                target_img[target_img>0]=1
-                x1,y1=np.where(source_img)
-                xlen1,ylen1=x1.max()-x1.min(),y1.max()-y1.min()
-                x2,y2=np.where(target_img)
-                xlen2,ylen2=x2.max()-x2.min(),y2.max()-y2.min()
-                aligned_image=np.zeros_like(source_img)
-                xmin=max(0,x1.max()-xlen2)
-                xlen=x1.max()-xmin
-                ymax=min(source_img.shape[1],y1.min()+ylen2)
-                ylen=ymax-y1.min()
-                aligned_image[xmin:x1.max(),y1.min():ymax]=target_img[x2.min():x2.min()+xlen,y2.min():y2.min()+ylen]
-                aligned_depth=np.zeros_like(source_img,dtype=np.float64)
-                aligned_depth[xmin:x1.max(),y1.min():ymax]=target_depth[x2.min():x2.min()+xlen,y2.min():y2.min()+ylen]
-                x_move=abs(x2.max()-x1.max())
-                y_move=abs(y2.min()-y1.min())
-                return aligned_image,aligned_depth,x_move,y_move
-        
-
             aligned_img=canon_proj_thres
             aligned_depth=canon_proj
 
-            # plt.imshow(aligned_depth)
-
+            '''
+            align the depth map to the canon mask
+            *************************************************************************************************************************
+            '''
             target_points=np.argwhere(canon_mask>0)
-            source_points=np.argwhere(aligned_img>0)
+            source_points=np.argwhere(aligned_depth>0)
+            depth_vals=[aligned_depth[pt[0],pt[1]] for pt in source_points]
             #estimate initial params
             source_points_norm=(source_points-source_points.mean(axis=0))/source_points.std(axis=0)
             source_points_norm_scaled=source_points_norm*target_points.std(axis=0)+target_points.mean(axis=0)
@@ -558,88 +479,72 @@ def sync_imgs():
 
             source_points[:,0]=source_points[:,0]/source_std[0]*target_std[0]+(target_centroid[0]-source_centroid[0])
             source_points[:,1]=source_points[:,1]/source_std[1]*target_std[1]+(target_centroid[1]-source_centroid[1])
+            '''
+            *************************************************************************************************************************
+            '''
+            canon_depth=np.zeros_like(canon_mask,dtype=np.uint16)
+            h,w=canon_mask.shape
+            for i,pt in enumerate(source_points_norm_scaled):
+                x, y = pt
+                if x>=0 and x<h and y>=0 and y<w:
+                    canon_depth[int(x),int(y)]=depth_vals[i]
+                        
+            canon_mask[canon_mask>0]=255
+            k_mask[k_mask>0]=255
+            canon_img=utils.draw_bb(closest_file,canon_bb,show=False)
+            mask_depth_canon=utils.show_img_overlay(canon_mask,canon_depth,alpha=0.7,show=False)
 
-            utils.show_img_overlay(utils.get_img_from_points(1080, 1920,source_points_norm_scaled),utils.get_img_from_points(1080, 1920,target_points),alpha=0.7)
+            k_img=utils.draw_bb(k_file,k_bb,show=False)
+            k_depth=cv2.imread(k_file.replace('color','depth').replace('jpg','png'), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
 
+            fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+            axs[0, 0].imshow(canon_img)
+            axs[0, 0].set_title('Canon Image')
+            axs[0, 1].imshow(mask_depth_canon)
+            axs[0, 1].set_title('Canon Mask and Depth')
+            axs[0, 2].imshow(k_img)
+            axs[0, 2].set_title('Kinect Image')
+            axs[1, 0].imshow(k_depth)
+            axs[1, 0].set_title('Kinect Depth')
+            axs[1, 1].imshow(k_mask)
+            axs[1, 1].set_title('Kinect Mask')
+            axs[1, 2].axis('off')  # Empty subplot
+            plt.tight_layout()
+            plt.show()
 
-            initial_params = [1.5]
-            result = minimize(transformation_cost, initial_params, args=(source_points,target_points), method='L-BFGS-B')
-            optimized_params = result.x
-            print("Optimized Translation (dx, dy):", optimized_params[:2])
-            print("Optimized Rotation (radians):", optimized_params[2])
-            print("Optimized Scale:", optimized_params[3])
-
-
-
-
-
-            for i in range(10):
-                aligned_img,aligned_depth,scale=opt_scale(canon_mask,aligned_img,aligned_depth)
-                aligned_img,aligned_depth,x_move,y_move=opt_trans(canon_mask,aligned_img,aligned_depth)
-
-                aligned_img,aligned_depth,angle=opt_rotate(canon_mask,aligned_img,aligned_depth)
-                aligned_img,aligned_depth,x_move,y_move=opt_trans(canon_mask,aligned_img,aligned_depth)
-                print(f'scale: {scale} angle: {angle} movement: {(x_move+y_move)*0.5}')
-            # utils.show_img_overlay(canon_mask,aligned_depth)
-            plt.imshow(aligned_depth)
+            # Create the main window
+            global root
+            root = tk.Tk()
+            root.title("OpenCV Actions")
+            # Create and place the buttons
+            button1 = tk.Button(root, text="Accept", command=on_accept_press)
+            button1.pack(padx=20, pady=10)
+            button2 = tk.Button(root, text="Reject", command=on_reject_press)
+            button2.pack(padx=20, pady=10)
+            # Start the GUI event loop
+            root.mainloop()
 
             #save data
             kinect_dirs=[os.path.join(out_path,'kinect',dir) for dir in ['depth','color','seg']]
-            for dir in kinect_dirs:
-                if not os.path.exists(dir):
-                    os.makedirs(dir)
+            for d in kinect_dirs:
+                if not os.path.exists(d):
+                    os.makedirs(d)
             canon_dirs=[os.path.join(out_path,'canon',dir) for dir in ['depth','color','seg']]
-            for dir in canon_dirs:
-                if not os.path.exists(dir):
-                    os.makedirs(dir)
+            for d in canon_dirs:
+                if not os.path.exists(d):
+                    os.makedirs(d)
 
-            canon_color_file=os.path.join(out_path,'canon','color',part_name+'_'+str(ind)+'.jpg')
-            shutil.copy(closest_file, canon_color_file)
-            canon_depth_file=os.path.join(out_path,'canon','depth',part_name+'_'+str(ind)+'.png')
-            cv2.imwrite(canon_depth_file, (aligned_depth).astype(np.uint16))
-            canon_seg_file=os.path.join(out_path,'canon','seg',part_name+'_'+str(ind)+'.png')
-            canon_mask[canon_mask>0]=255
-            cv2.imwrite(canon_seg_file, canon_mask)
-
-            kinect_color_file=os.path.join(out_path,'kinect','color',part_name+'_'+str(ind)+'.jpg')
-            shutil.copy(k_file, kinect_color_file)
-            kinect_depth_file=os.path.join(out_path,'kinect','depth',part_name+'_'+str(ind)+'.png')
-            shutil.copy( k_file.replace('color','depth').replace('jpg','png'),kinect_depth_file)
-            kinect_seg_file=os.path.join(out_path,'kinect','seg',part_name+'_'+str(ind)+'.png')
-            k_mask[k_mask>0]=255
-            cv2.imwrite(kinect_seg_file, k_mask)
-
-
-
-
-
-            
-            
-            # depth_croped=utils.crop_img_bb(np.expand_dims(aligned_depth, axis=2),canon_bb,1)
-            # depth_croped=depth_croped.squeeze().astype(np.uint16)
-            # missing_idx=np.argwhere(depth_croped==0)
-            # for idx in missing_idx:
-                
-
-
-            
-
-            
-            
-
-
-
-
-
+            if save_data:
+                shutil.copy(closest_file, canon_color_file)
+                cv2.imwrite(canon_depth_file, (canon_depth).astype(np.uint16))
+                cv2.imwrite(canon_seg_file, canon_mask)
+                shutil.copy(k_file, kinect_color_file)
+                shutil.copy( k_file.replace('color','depth').replace('jpg','png'),kinect_depth_file)
+                cv2.imwrite(kinect_seg_file, k_mask)
+                print('data saved')
+            else:
+                print('data rejected')
 
 if __name__ == "__main__":
     sync_imgs()
-
-
-
-# timestamp_str = "12:26:22.439"
-# utils.get_ms_from_ts(timestamp_str)
-
-
-
 
