@@ -303,7 +303,7 @@ def sync_imgs():
 
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
-                # continue
+                continue
             
 
             ts=kinect_ts[ind]
@@ -383,6 +383,10 @@ def sync_imgs():
             results = base_model.predict(closest_file)
             canon_bb=utils.get_bb(results)
 
+            if len(k_bb)*len(lower_bb)*len(upper_bb)*len(canon_bb)==0:
+                print('at least one bb is missing')
+                continue
+
             # utils.draw_bb(k_file,k_bb)
 
             if (len(lower_bb)*len(upper_bb)*len(canon_bb))==0:
@@ -411,9 +415,11 @@ def sync_imgs():
             pcd_upper = o3d.geometry.PointCloud()
             pcd_upper.points = o3d.utility.Vector3dVector(points)
 
+            # o3d.visualization.draw_geometries([pcd_upper], window_name="Original Point Clouds")
+
             init_transformation = np.eye(4)
             icp_result = o3d.pipelines.registration.registration_icp(
-            pcd_lower, pcd_upper, max_correspondence_distance=0.02,  # Set according to your data scale
+            pcd_lower, pcd_upper, max_correspondence_distance=0.002,  # Set according to your data scale
             init=init_transformation,
             estimation_method=o3d.pipelines.registration.TransformationEstimationPointToPoint(),
             criteria=o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=2000)
@@ -566,8 +572,6 @@ def sync_imgs():
                 canon_bb=[int(b) for b in canon_bb]
                 f.write(closest_file+','+','.join(map(str, canon_bb))+'\n')
             
-
-
 if __name__ == "__main__":
     sync_imgs()
 
