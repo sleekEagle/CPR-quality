@@ -266,6 +266,8 @@ def sync_imgs():
     out_path=r'D:/hand_depth_extracted'
     dirs=utils.list_subdirectories(kinect_root)
     for dir in dirs:
+        k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
+        canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
@@ -297,6 +299,12 @@ def sync_imgs():
             kinect_color_file=os.path.join(out_path,'kinect','color',part_name+'_'+str(ind)+'.jpg')
             kinect_depth_file=os.path.join(out_path,'kinect','depth',part_name+'_'+str(ind)+'.png')
             kinect_seg_file=os.path.join(out_path,'kinect','seg',part_name+'_'+str(ind)+'.png')
+            print(os.path.basename(canon_color_file))
+
+            if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
+                print('files already exist. continuing...')
+                # continue
+            
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
@@ -339,18 +347,28 @@ def sync_imgs():
             ts=get_ms_ts(canon_file)
             c_ts = ts if ts else canon_ts
 
+            num=0
             while k_upper_ts<=c_ts:
                 kinect_closest_upper_idx+=1
                 k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
+                num+=1
+                if num>10:
+                    break
+            num=0
             while k_lower_ts>c_ts:
                 kinect_closest_lower_idx-=1
                 k_lower_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_lower_idx])
                 ts=get_ms_ts(k_lower_file)
                 k_lower_ts = ts if ts else kinect_ts[kinect_closest_lower_idx]
+                num+=1
+                if num>10:
+                    break
 
-            assert k_lower_ts<=c_ts<=k_upper_ts , 'timestamps not in order'
+            if not(k_lower_ts<=c_ts<=k_upper_ts):
+                print('timestamps not in order')
+                continue
             
             print(k_lower_ts,k_ts,k_upper_ts,c_ts)
             print('lower , upper:',kinect_closest_lower_idx,kinect_closest_upper_idx)
@@ -491,38 +509,38 @@ def sync_imgs():
                         
             canon_mask[canon_mask>0]=255
             k_mask[k_mask>0]=255
-            canon_img=utils.draw_bb(closest_file,canon_bb,show=False)
-            mask_depth_canon=utils.show_img_overlay(canon_mask,canon_depth,alpha=0.7,show=False)
+            # canon_img=utils.draw_bb(closest_file,canon_bb,show=False)
+            # mask_depth_canon=utils.show_img_overlay(canon_mask,canon_depth,alpha=0.7,show=False)
 
-            k_img=utils.draw_bb(k_file,k_bb,show=False)
-            k_depth=cv2.imread(k_file.replace('color','depth').replace('jpg','png'), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            # k_img=utils.draw_bb(k_file,k_bb,show=False)
+            # k_depth=cv2.imread(k_file.replace('color','depth').replace('jpg','png'), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
 
-            fig, axs = plt.subplots(2, 3, figsize=(12, 8))
-            axs[0, 0].imshow(canon_img)
-            axs[0, 0].set_title('Canon Image')
-            axs[0, 1].imshow(mask_depth_canon)
-            axs[0, 1].set_title('Canon Mask and Depth')
-            axs[0, 2].imshow(k_img)
-            axs[0, 2].set_title('Kinect Image')
-            axs[1, 0].imshow(k_depth)
-            axs[1, 0].set_title('Kinect Depth')
-            axs[1, 1].imshow(k_mask)
-            axs[1, 1].set_title('Kinect Mask')
-            axs[1, 2].axis('off')  # Empty subplot
-            plt.tight_layout()
-            plt.show()
+            # fig, axs = plt.subplots(2, 3, figsize=(12, 8))
+            # axs[0, 0].imshow(canon_img)
+            # axs[0, 0].set_title('Canon Image')
+            # axs[0, 1].imshow(mask_depth_canon)
+            # axs[0, 1].set_title('Canon Mask and Depth')
+            # axs[0, 2].imshow(k_img)
+            # axs[0, 2].set_title('Kinect Image')
+            # axs[1, 0].imshow(k_depth)
+            # axs[1, 0].set_title('Kinect Depth')
+            # axs[1, 1].imshow(k_mask)
+            # axs[1, 1].set_title('Kinect Mask')
+            # axs[1, 2].axis('off')  # Empty subplot
+            # plt.tight_layout()
+            # plt.show()
 
             # Create the main window
-            global root
-            root = tk.Tk()
-            root.title("OpenCV Actions")
-            # Create and place the buttons
-            button1 = tk.Button(root, text="Accept", command=on_accept_press)
-            button1.pack(padx=20, pady=10)
-            button2 = tk.Button(root, text="Reject", command=on_reject_press)
-            button2.pack(padx=20, pady=10)
-            # Start the GUI event loop
-            root.mainloop()
+            # global root
+            # root = tk.Tk()
+            # root.title("OpenCV Actions")
+            # # Create and place the buttons
+            # button1 = tk.Button(root, text="Accept", command=on_accept_press)
+            # button1.pack(padx=20, pady=10)
+            # button2 = tk.Button(root, text="Reject", command=on_reject_press)
+            # button2.pack(padx=20, pady=10)
+            # # Start the GUI event loop
+            # root.mainloop()
 
             #save data
             kinect_dirs=[os.path.join(out_path,'kinect',dir) for dir in ['depth','color','seg']]
@@ -534,16 +552,21 @@ def sync_imgs():
                 if not os.path.exists(d):
                     os.makedirs(d)
 
-            if save_data:
-                shutil.copy(closest_file, canon_color_file)
-                cv2.imwrite(canon_depth_file, (canon_depth).astype(np.uint16))
-                cv2.imwrite(canon_seg_file, canon_mask)
-                shutil.copy(k_file, kinect_color_file)
-                shutil.copy( k_file.replace('color','depth').replace('jpg','png'),kinect_depth_file)
-                cv2.imwrite(kinect_seg_file, k_mask)
-                print('data saved')
-            else:
-                print('data rejected')
+            shutil.copy(closest_file, canon_color_file)
+            cv2.imwrite(canon_depth_file, (canon_depth).astype(np.uint16))
+            cv2.imwrite(canon_seg_file, canon_mask)
+            shutil.copy(k_file, kinect_color_file)
+            shutil.copy( k_file.replace('color','depth').replace('jpg','png'),kinect_depth_file)
+            cv2.imwrite(kinect_seg_file, k_mask)
+
+            with open(k_bb_path, 'a') as f:
+                k_bb=[int(b) for b in k_bb]
+                f.write(k_file+','+','.join(map(str, k_bb))+'\n')
+            with open(canon_bb_path, 'a') as f: 
+                canon_bb=[int(b) for b in canon_bb]
+                f.write(closest_file+','+','.join(map(str, canon_bb))+'\n')
+            
+
 
 if __name__ == "__main__":
     sync_imgs()
