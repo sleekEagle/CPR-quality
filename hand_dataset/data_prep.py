@@ -269,6 +269,8 @@ def sync_imgs():
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
+        # if part_name in ['P0','P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12','P13']:
+        #     continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -282,6 +284,9 @@ def sync_imgs():
         #get all canon files and ts
         part=dir.split('_')[0]
         canon_dirs=utils.get_dirs_with_str(canon_root,part,i=0,j=1)
+        if len(canon_dirs)==0:
+            print('no canon dirs found')
+            continue
         canon_files_list,canon_ts_list=[],[]
         for d in canon_dirs:
             canon_ts_file=os.path.join(canon_root,d,'ts.txt')
@@ -300,12 +305,11 @@ def sync_imgs():
             kinect_depth_file=os.path.join(out_path,'kinect','depth',part_name+'_'+str(ind)+'.png')
             kinect_seg_file=os.path.join(out_path,'kinect','seg',part_name+'_'+str(ind)+'.png')
             print(os.path.basename(canon_color_file))
-
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
                 continue
-            
 
+                # continue
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
             #find the closest canon image
@@ -386,12 +390,6 @@ def sync_imgs():
             if len(k_bb)*len(lower_bb)*len(upper_bb)*len(canon_bb)==0:
                 print('at least one bb is missing')
                 continue
-
-            # utils.draw_bb(k_file,k_bb)
-
-            if (len(lower_bb)*len(upper_bb)*len(canon_bb))==0:
-                print('no hand detected')
-                continue
                 
             #detect hand segmentation
             k_mask=get_seg(k_file,k_bb)
@@ -415,9 +413,17 @@ def sync_imgs():
             pcd_upper = o3d.geometry.PointCloud()
             pcd_upper.points = o3d.utility.Vector3dVector(points)
 
-            # o3d.visualization.draw_geometries([pcd_upper], window_name="Original Point Clouds")
+            upper_center=np.asarray(pcd_upper.points).mean(axis=0)
+            lower_center=np.asarray(pcd_lower.points).mean(axis=0)
+            tr=upper_center-lower_center
+            # np.asarray(pcd_lower.points) + (upper_center-lower_center)
+            # p = o3d.geometry.PointCloud()
+            # p.points=o3d.utility.Vector3dVector(np.asarray(pcd_lower.points) + (upper_center-lower_center))
+
+            # o3d.visualization.draw_geometries([p,pcd_upper], window_name="Original Point Clouds")
 
             init_transformation = np.eye(4)
+            init_transformation[:3,-1]=tr
             icp_result = o3d.pipelines.registration.registration_icp(
             pcd_lower, pcd_upper, max_correspondence_distance=0.002,  # Set according to your data scale
             init=init_transformation,
@@ -458,6 +464,9 @@ def sync_imgs():
 
             x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
             canon_proj=np.zeros(utils.canon_original_res)
+            if len(canon_proj[canon_proj>0])==0:
+                print('no points projected')
+                continue
             for i in range(len(x)):
                 if int(x[i])<0 or int(y[i])<0 or int(y[i])>lower_mask.shape[1]-1 or int(x[i])>lower_mask.shape[0]-1:
                     continue
@@ -565,12 +574,12 @@ def sync_imgs():
             shutil.copy( k_file.replace('color','depth').replace('jpg','png'),kinect_depth_file)
             cv2.imwrite(kinect_seg_file, k_mask)
 
+            canon_bb_str=part_name+'_'+str(ind)+',' + ','.join([str(int(bb)) for bb in canon_bb])
+            kinect_bb_str=part_name+'_'+str(ind)+',' + ','.join([str(int(bb)) for bb in k_bb])
             with open(k_bb_path, 'a') as f:
-                k_bb=[int(b) for b in k_bb]
-                f.write(k_file+','+','.join(map(str, k_bb))+'\n')
+                f.write(kinect_bb_str+'\n')
             with open(canon_bb_path, 'a') as f: 
-                canon_bb=[int(b) for b in canon_bb]
-                f.write(closest_file+','+','.join(map(str, canon_bb))+'\n')
+                f.write(canon_bb_str+'\n')
             
 if __name__ == "__main__":
     sync_imgs()
