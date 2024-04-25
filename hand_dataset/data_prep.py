@@ -271,6 +271,7 @@ def sync_imgs(data_root,out_path):
         part_name=dir.split('_')[0]
         # if part_name in ['P0','P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12','P13']:
         #     continue
+        dir='P7_1'
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -311,6 +312,7 @@ def sync_imgs(data_root,out_path):
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
+            print('k_file:',k_file)
             #find the closest canon image
             closest_idx=np.argmin(np.abs(canon_ts_list-ts))
             canon_ts=canon_ts_list[closest_idx]
