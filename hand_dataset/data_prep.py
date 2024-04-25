@@ -316,6 +316,7 @@ def sync_imgs(data_root,out_path):
             closest_idx=np.argmin(np.abs(canon_ts_list-ts))
             canon_ts=canon_ts_list[closest_idx]
             closest_file=canon_files_list[closest_idx]
+            closest_file=os.path.join(canon_root,closest_file.split('\\')[-2],closest_file.split('\\')[-1])
             #get the kinect images around this canon image
             v=kinect_ts-canon_ts
             if len(v[v<=0])==0:
@@ -348,7 +349,7 @@ def sync_imgs(data_root,out_path):
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
 
-            ts=get_ms_ts(canon_file)
+            ts=get_ms_ts(os.path.join(canon_root,canon_file))
             c_ts = ts if ts else canon_ts
 
             num=0
