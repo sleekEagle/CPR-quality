@@ -310,7 +310,7 @@ def sync_imgs(data_root,out_path):
                 # continue
 
             ts=kinect_ts[ind]
-            k_file=os.path.basename(kinect_files[ind])
+            k_file=kinect_files[ind][-9:]
             print('k_file:',k_file)
             #find the closest canon image
             closest_idx=np.argmin(np.abs(canon_ts_list-ts))
