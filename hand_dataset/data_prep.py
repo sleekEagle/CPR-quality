@@ -18,6 +18,12 @@ from scipy.optimize import minimize
 import shutil
 import time
 import argparse
+import logging
+
+# Set up logging configuration
+logging.basicConfig(filename='handdepth.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('This is a log message')
 
 skip=120
 #object detection model
@@ -286,6 +292,7 @@ def sync_imgs(data_root,out_path):
         canon_dirs=utils.get_dirs_with_str(canon_root,part,i=0,j=1)
         if len(canon_dirs)==0:
             print('no canon dirs found')
+            logging.info('no canon dirs found')
             continue
         canon_files_list,canon_ts_list=[],[]
         for d in canon_dirs:
@@ -305,18 +312,22 @@ def sync_imgs(data_root,out_path):
             kinect_depth_file=os.path.join(out_path,'kinect','depth',part_name+'_'+str(ind)+'.png')
             kinect_seg_file=os.path.join(out_path,'kinect','seg',part_name+'_'+str(ind)+'.png')
             print(os.path.basename(canon_color_file))
+            logging.info(os.path.basename(canon_color_file))
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
+                logging.info('files already exist. continuing...')
                 # continue
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
             print('k_file:',k_file)
+            logging.info(f'k_file:{k_file}')
             #find the closest canon image
             closest_idx=np.argmin(np.abs(canon_ts_list-ts))
             canon_ts=canon_ts_list[closest_idx]
             closest_file=canon_files_list[closest_idx]
             print('closest_file',closest_file)
+            logging.info(f'closest_file:{closest_file}')
             #get the kinect images around this canon image
             v=kinect_ts-canon_ts
             if len(v[v<=0])==0:
@@ -350,6 +361,7 @@ def sync_imgs(data_root,out_path):
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
 
             print('canon_file:',canon_file)
+            logging.info(f'canon_file:{canon_file}')
             ts=get_ms_ts(canon_file)
             c_ts = ts if ts else canon_ts
 
@@ -374,10 +386,12 @@ def sync_imgs(data_root,out_path):
 
             if not(k_lower_ts<=c_ts<=k_upper_ts):
                 print('timestamps not in order')
+                logging.info('timestamps not in order')
                 continue
             
             print(k_lower_ts,k_ts,k_upper_ts,c_ts)
             print('lower , upper:',kinect_closest_lower_idx,kinect_closest_upper_idx)
+            logging.info(f'lower , upper:,f{kinect_closest_lower_idx},f{kinect_closest_upper_idx}')
             
             #detect bbs
             results = base_model.predict(k_file)
@@ -391,6 +405,7 @@ def sync_imgs(data_root,out_path):
 
             if len(k_bb)*len(lower_bb)*len(upper_bb)*len(canon_bb)==0:
                 print('at least one bb is missing')
+                logging.info('at least one bb is missing')
                 continue
                 
             #detect hand segmentation
@@ -446,6 +461,7 @@ def sync_imgs(data_root,out_path):
             transformation_matrix = icp_result.transformation
             print("Transformation Matrix:")
             print(transformation_matrix)
+            logging.info(f'Transformation Matrix: f{transformation_matrix}')
 
             frac=(c_ts-k_lower_ts)/(k_upper_ts-k_lower_ts)
             assert frac>=0, 'fraction should be positive'
@@ -482,6 +498,7 @@ def sync_imgs(data_root,out_path):
                 canon_proj[int(x[i]),int(y[i])]=Z[i]
             if len(canon_proj[canon_proj>0])==0:
                 print('no points projected')
+                logging.info('no points projected')
                 continue
             canon_proj_thres=canon_proj.copy()
             canon_proj_thres[canon_proj_thres>0]=1
