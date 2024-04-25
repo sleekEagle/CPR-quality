@@ -275,6 +275,7 @@ def sync_imgs(data_root,out_path):
         with open(ts_path, 'r') as f:
             lines = f.readlines()
         kinect_files=[l.split(',')[0] for l in lines]
+        print(kinect_files)
         kinect_ts=np.array([float(l.split(',')[1].strip()) for l in lines])
         
         indices = list(range(0, len(kinect_files), 30))
@@ -311,6 +312,7 @@ def sync_imgs(data_root,out_path):
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
+            print('k_file:',k_file)
             #find the closest canon image
             closest_idx=np.argmin(np.abs(canon_ts_list-ts))
             canon_ts=canon_ts_list[closest_idx]
