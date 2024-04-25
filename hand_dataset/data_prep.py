@@ -348,6 +348,7 @@ def sync_imgs(data_root,out_path):
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
 
+            print('canon_file:',canon_file)
             ts=get_ms_ts(canon_file)
             c_ts = ts if ts else canon_ts
 
