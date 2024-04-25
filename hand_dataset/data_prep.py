@@ -292,7 +292,7 @@ def sync_imgs(data_root,out_path):
             canon_ts_file=os.path.join(canon_root,d,'ts.txt')
             with open(canon_ts_file, 'r') as f:
                 lines = f.readlines()
-            canon_files=[os.path.join(d,os.path.basename(l.split(',')[0])) for l in lines]
+            canon_files=[os.path.join(d,l.split(',')[0])[-8:] for l in lines]
             canon_ts=[float(l.split(',')[1].strip()) for l in lines]
             canon_files_list.extend(canon_files)
             canon_ts_list.extend(canon_ts)
