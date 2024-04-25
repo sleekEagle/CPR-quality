@@ -272,10 +272,11 @@ def sync_imgs(data_root,out_path):
         # if part_name in ['P0','P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12','P13']:
         #     continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
+        print('ts_path:',ts_path)
         with open(ts_path, 'r') as f:
             lines = f.readlines()
+        print(lines[0])
         kinect_files=[l.split(',')[0] for l in lines]
-        print(kinect_files)
         kinect_ts=np.array([float(l.split(',')[1].strip()) for l in lines])
         
         indices = list(range(0, len(kinect_files), 30))
