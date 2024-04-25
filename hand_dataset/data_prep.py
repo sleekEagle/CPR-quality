@@ -608,9 +608,8 @@ def sync_imgs(data_root,out_path):
             with open(k_bb_path, 'a') as f:
                 f.write(kinect_bb_str+'\n')
             with open(canon_bb_path, 'a') as f: 
-                f.write(canon_bb_str+'\n')
-            time.sleep(60)
-            
+                f.write(canon_bb_str+'\n')      
+                      
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data Preparation')
     parser.add_argument('--data_root', type=str, default='D:/hand_depth_dataset/', help='Root directory of Canon data')
