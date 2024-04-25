@@ -26,7 +26,7 @@ base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))
 #hand segmentation model
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 MODEL_TYPE = "vit_h"
-CHECKPOINT_PATH=r'C:\Users\lahir\code\CPR-quality\sam_vit_h_4b8939.pth'
+CHECKPOINT_PATH=os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),'sam_vit_h_4b8939.pth')
 sam = sam_model_registry[MODEL_TYPE](checkpoint=CHECKPOINT_PATH)
 sam.to(device=DEVICE)
 mask_predictor = SamPredictor(sam)
