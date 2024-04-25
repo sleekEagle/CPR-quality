@@ -16,11 +16,10 @@ import open3d as o3d
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import minimize
 import shutil
-
+import time
+import argparse
 
 skip=120
-kinect_root=r'D:\hand_depth_dataset\kinect'
-canon_root=r'D:\hand_depth_dataset\canon'
 #object detection model
 base_model = GroundingDINO(ontology=CaptionOntology({"hand": "hand"}))
 
@@ -262,8 +261,9 @@ def on_reject_press():
     save_data = False
     root.destroy()
             
-def sync_imgs():
-    out_path=r'D:/hand_depth_extracted'
+def sync_imgs(data_root,out_path):
+    kinect_root=os.path.join(data_root,'kinect')
+    canon_root=os.path.join(data_root,'canon')
     dirs=utils.list_subdirectories(kinect_root)
     for dir in dirs:
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
@@ -307,9 +307,8 @@ def sync_imgs():
             print(os.path.basename(canon_color_file))
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
-                continue
-
                 # continue
+
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
             #find the closest canon image
@@ -404,6 +403,17 @@ def sync_imgs():
             # Read the image
             X_lower,Y_lower,Z_lower=get_point_cloud(k_lower_file,lower_mask)
             X_upper,Y_upper,Z_upper=get_point_cloud(k_upper_file,upper_mask)
+            #remove outlier depth values
+            def remove_outliers(ar):
+                mad=np.median(np.abs(ar-np.median(ar)))  
+                threshold=5*mad
+                filtered_entries = (np.abs(ar-np.median(ar))) < threshold
+                return np.where(filtered_entries)[0]
+
+            inlier_args=remove_outliers(Z_lower)
+            X_lower,Y_lower,Z_lower=X_lower[inlier_args],Y_lower[inlier_args],Z_lower[inlier_args]
+            inlier_args=remove_outliers(Z_upper)
+            X_upper,Y_upper,Z_upper=X_upper[inlier_args],Y_upper[inlier_args],Z_upper[inlier_args]
 
             points = np.vstack((X_lower, Y_lower, Z_lower)).T
             pcd_lower = o3d.geometry.PointCloud()
@@ -420,7 +430,7 @@ def sync_imgs():
             # p = o3d.geometry.PointCloud()
             # p.points=o3d.utility.Vector3dVector(np.asarray(pcd_lower.points) + (upper_center-lower_center))
 
-            # o3d.visualization.draw_geometries([p,pcd_upper], window_name="Original Point Clouds")
+            # o3d.visualization.draw_geometries([pcd_lower,pcd_upper], window_name="Original Point Clouds")
 
             init_transformation = np.eye(4)
             init_transformation[:3,-1]=tr
@@ -450,27 +460,26 @@ def sync_imgs():
             T_int = np.eye(4)
             T_int[:3,:3]=new_rot
             T_int[:3,3]=T_new
-            pcd_lower.transform(T_int)
+
+            pcd_int = o3d.geometry.PointCloud()
+            pcd_int.points = o3d.utility.Vector3dVector(pcd_lower.points)
+            pcd_int.transform(T_int)
+
+            # o3d.visualization.draw_geometries([pcd_int], window_name="Aligned Point Clouds")
+
             #transform into canon coordinate frame
-            pcd_lower.transform(utils.kinect_to_canon)
+            pcd_int.transform(utils.kinect_to_canon)
             #project the point cloud into the canon image
-            X,Y,Z=np.array(pcd_lower.points).T
-
-            # points = np.vstack((X, Y, Z)).T
-            # pcd_lower = o3d.geometry.PointCloud()
-            # pcd_lower.points = o3d.utility.Vector3dVector(points)
-            # o3d.visualization.draw_geometries([pcd_lower], window_name="Aligned Point Clouds")
-
-
+            X,Y,Z=np.array(pcd_int.points).T
             x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
             canon_proj=np.zeros(utils.canon_original_res)
-            if len(canon_proj[canon_proj>0])==0:
-                print('no points projected')
-                continue
             for i in range(len(x)):
                 if int(x[i])<0 or int(y[i])<0 or int(y[i])>lower_mask.shape[1]-1 or int(x[i])>lower_mask.shape[0]-1:
                     continue
                 canon_proj[int(x[i]),int(y[i])]=Z[i]
+            if len(canon_proj[canon_proj>0])==0:
+                print('no points projected')
+                continue
             canon_proj_thres=canon_proj.copy()
             canon_proj_thres[canon_proj_thres>0]=1
             # canon_proj_thres=canon_proj_thres.astype(np.uint8)
@@ -524,11 +533,11 @@ def sync_imgs():
                         
             canon_mask[canon_mask>0]=255
             k_mask[k_mask>0]=255
-            # canon_img=utils.draw_bb(closest_file,canon_bb,show=False)
-            # mask_depth_canon=utils.show_img_overlay(canon_mask,canon_depth,alpha=0.7,show=False)
+            canon_img=utils.draw_bb(closest_file,canon_bb,show=False)
+            mask_depth_canon=utils.show_img_overlay(canon_mask,canon_depth,alpha=0.7,show=False)
 
-            # k_img=utils.draw_bb(k_file,k_bb,show=False)
-            # k_depth=cv2.imread(k_file.replace('color','depth').replace('jpg','png'), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+            k_img=utils.draw_bb(k_file,k_bb,show=False)
+            k_depth=cv2.imread(k_file.replace('color','depth').replace('jpg','png'), cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
 
             # fig, axs = plt.subplots(2, 3, figsize=(12, 8))
             # axs[0, 0].imshow(canon_img)
@@ -545,7 +554,7 @@ def sync_imgs():
             # plt.tight_layout()
             # plt.show()
 
-            # Create the main window
+            # # Create the main window
             # global root
             # root = tk.Tk()
             # root.title("OpenCV Actions")
@@ -580,7 +589,14 @@ def sync_imgs():
                 f.write(kinect_bb_str+'\n')
             with open(canon_bb_path, 'a') as f: 
                 f.write(canon_bb_str+'\n')
+            time.sleep(60)
             
 if __name__ == "__main__":
-    sync_imgs()
+    parser = argparse.ArgumentParser(description='Data Preparation')
+    parser.add_argument('--data_root', type=str, default='D:/hand_depth_dataset/', help='Root directory of Canon data')
+    parser.add_argument('--output_path', type=str, default='D:/hand_depth_extracted/', help='Output path for synchronized images')
+    args = parser.parse_args()
+    sync_imgs(args.data_root,args.output_path)
+
+
 
