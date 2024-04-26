@@ -277,6 +277,8 @@ def sync_imgs(data_root,out_path):
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
+        if part_name in ['P17','P7','P6']:
+            continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -316,7 +318,7 @@ def sync_imgs(data_root,out_path):
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
                 logging.info('files already exist. continuing...')
-                # continue
+                continue
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
@@ -427,6 +429,10 @@ def sync_imgs(data_root,out_path):
             # Read the image
             X_lower,Y_lower,Z_lower=get_point_cloud(k_lower_file,lower_mask)
             X_upper,Y_upper,Z_upper=get_point_cloud(k_upper_file,upper_mask)
+            if np.isnan(X_upper).all() or np.isnan(Y_upper).all() or np.isnan(Z_upper).all() or np.isnan(X_lower).all() or np.isnan(Y_lower).all() or np.isnan(Z_lower).all():
+                print('nan values in point cloud')
+                logging.info('nan values in point cloud')
+                continue
             #remove outlier depth values
             def remove_outliers(ar):
                 mad=np.median(np.abs(ar-np.median(ar)))  
