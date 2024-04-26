@@ -275,8 +275,8 @@ def sync_imgs(data_root,out_path):
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
-        # if part_name in ['P0','P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12','P13']:
-        #     continue
+        if not part_name in ['P7']:
+            continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -316,7 +316,7 @@ def sync_imgs(data_root,out_path):
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
                 logging.info('files already exist. continuing...')
-                # continue
+                continue
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
@@ -368,6 +368,9 @@ def sync_imgs(data_root,out_path):
             num=0
             while k_upper_ts<=c_ts:
                 kinect_closest_upper_idx+=1
+                if kinect_closest_upper_idx>=len(kinect_files):
+                    print('kinnect uper idx is out of range')
+                    continue
                 k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
@@ -377,6 +380,9 @@ def sync_imgs(data_root,out_path):
             num=0
             while k_lower_ts>c_ts:
                 kinect_closest_lower_idx-=1
+                if kinect_closest_lower_idx<0:
+                    print('kinnect lower idx is out of range')
+                    continue
                 k_lower_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_lower_idx])
                 ts=get_ms_ts(k_lower_file)
                 k_lower_ts = ts if ts else kinect_ts[kinect_closest_lower_idx]
@@ -609,7 +615,7 @@ def sync_imgs(data_root,out_path):
                 f.write(kinect_bb_str+'\n')
             with open(canon_bb_path, 'a') as f: 
                 f.write(canon_bb_str+'\n')      
-                      
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data Preparation')
     parser.add_argument('--data_root', type=str, default='D:/hand_depth_dataset/', help='Root directory of Canon data')
