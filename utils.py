@@ -521,13 +521,30 @@ def extract_time_str(txt):
     else: 
          return None
 
-def get_ts_google(image_path):
+def get_ts_google(image_path,wait=0):
     from google.cloud import vision
+    import time
+
     client = vision.ImageAnnotatorClient()
     with open(image_path, "rb") as image_file:
             content = image_file.read()
     image = vision.Image(content=content)
-    response = client.text_detection(image=image)
+    response=None
+    waited=0
+    while not response:
+        if waited>=wait:
+            break
+        try:
+            response = client.text_detection(image=image)
+        except Exception as e:
+            print(e)
+            time.sleep(20)
+        waited+=1
+        if response:
+            break
+    if not response or response.error.message:
+        return -1
+
     texts = response.text_annotations
 
     if len(texts)==0:

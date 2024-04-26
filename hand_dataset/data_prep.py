@@ -116,9 +116,11 @@ def get_ts_canon():
                 f.write(str(files[i])+','+str(intterp_ts_list[i])+'\n')
 
 def get_ms_ts(file):
-    ts=utils.get_ts_google(file)
-    if ts:
+    ts=utils.get_ts_google(file,wait=5)
+    if ts and ts!=-1:
         ts=utils.get_ms_from_ts(ts)
+    else:
+        ts=None
     return ts
 
 def get_seg(file,bb):
