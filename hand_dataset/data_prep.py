@@ -314,7 +314,7 @@ def sync_imgs(data_root,out_path):
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
                 logging.info('files already exist. continuing...')
-                continue
+                # continue
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
@@ -368,7 +368,7 @@ def sync_imgs(data_root,out_path):
                 kinect_closest_upper_idx+=1
                 if kinect_closest_upper_idx>=len(kinect_files):
                     print('kinnect uper idx is out of range')
-                    continue
+                    break
                 k_upper_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_upper_idx])
                 ts=get_ms_ts(k_upper_file)
                 k_upper_ts = ts if ts else kinect_ts[kinect_closest_upper_idx]
@@ -380,7 +380,7 @@ def sync_imgs(data_root,out_path):
                 kinect_closest_lower_idx-=1
                 if kinect_closest_lower_idx<0:
                     print('kinnect lower idx is out of range')
-                    continue
+                    break
                 k_lower_file=os.path.join(kinect_root,dir,'color',kinect_files[kinect_closest_lower_idx])
                 ts=get_ms_ts(k_lower_file)
                 k_lower_ts = ts if ts else kinect_ts[kinect_closest_lower_idx]
