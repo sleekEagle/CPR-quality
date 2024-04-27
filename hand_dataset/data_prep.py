@@ -277,8 +277,6 @@ def sync_imgs(data_root,out_path):
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
-        if part_name not in ['P19']:
-            continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -307,8 +305,6 @@ def sync_imgs(data_root,out_path):
             canon_ts_list.extend(canon_ts)
 
         for ind in indices:
-            if ind<20220:
-                continue
             canon_color_file=os.path.join(out_path,'canon','color',part_name+'_'+str(ind)+'.jpg')
             canon_depth_file=os.path.join(out_path,'canon','depth',part_name+'_'+str(ind)+'.png')
             canon_seg_file=os.path.join(out_path,'canon','seg',part_name+'_'+str(ind)+'.png')
