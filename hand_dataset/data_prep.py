@@ -431,8 +431,8 @@ def sync_imgs(data_root,out_path):
             # Read the image
             X_lower,Y_lower,Z_lower=get_point_cloud(k_lower_file,lower_mask)
             X_upper,Y_upper,Z_upper=get_point_cloud(k_upper_file,upper_mask)
-            if len(X_upper)<100:
-                print('not enough points in upper point cloud')
+            if len(X_upper)<20 or len(X_lower)<20:
+                print('not enough points in the point clouds')
                 logging.info('not enough points in upper point cloud')
                 continue
             if np.isnan(X_upper).all() or np.isnan(Y_upper).all() or np.isnan(Z_upper).all() or np.isnan(X_lower).all() or np.isnan(Y_lower).all() or np.isnan(Z_lower).all():
