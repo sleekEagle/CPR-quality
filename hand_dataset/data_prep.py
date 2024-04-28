@@ -277,6 +277,8 @@ def sync_imgs(data_root,out_path):
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
+        if part_name in ['P21','P23','P20','P1','P18','P2','P8','P12','P17','P6','P7']:
+            continue
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -320,6 +322,8 @@ def sync_imgs(data_root,out_path):
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
+            if k_file!='11080.jpg':
+                continue
             print('k_file:',k_file)
             logging.info(f'k_file:{k_file}')
             #find the closest canon image
@@ -427,6 +431,10 @@ def sync_imgs(data_root,out_path):
             # Read the image
             X_lower,Y_lower,Z_lower=get_point_cloud(k_lower_file,lower_mask)
             X_upper,Y_upper,Z_upper=get_point_cloud(k_upper_file,upper_mask)
+            if len(X_upper)<100:
+                print('not enough points in upper point cloud')
+                logging.info('not enough points in upper point cloud')
+                continue
             if np.isnan(X_upper).all() or np.isnan(Y_upper).all() or np.isnan(Z_upper).all() or np.isnan(X_lower).all() or np.isnan(Y_lower).all() or np.isnan(Z_lower).all():
                 print('nan values in point cloud')
                 logging.info('nan values in point cloud')
@@ -501,6 +509,7 @@ def sync_imgs(data_root,out_path):
             #project the point cloud into the canon image
             X,Y,Z=np.array(pcd_int.points).T
             x,y=utils.project_3d_to_2d(X,Y,Z,utils.canon_k)
+
             canon_proj=np.zeros(utils.canon_original_res)
             for i in range(len(x)):
                 if int(x[i])<0 or int(y[i])<0 or int(y[i])>lower_mask.shape[1]-1 or int(x[i])>lower_mask.shape[0]-1:
