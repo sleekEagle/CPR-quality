@@ -322,8 +322,6 @@ def sync_imgs(data_root,out_path):
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
-            if k_file!='11080.jpg':
-                continue
             print('k_file:',k_file)
             logging.info(f'k_file:{k_file}')
             #find the closest canon image
