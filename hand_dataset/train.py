@@ -83,7 +83,7 @@ def main(conf):
             logging.info(f'eval error: {error:.4f}')
             model.train()
             #save model
-            torch.save(model.state_dict(), os.path.join(conf.chekpt_path,f'cpr_blur_model.pth'))
+            torch.save(model.state_dict(), os.path.join(conf.chekpt_path,f'cpr_blur_model_{conf.crop_size}.pth'))
 
 if __name__ == "__main__":
     main()
