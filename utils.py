@@ -329,12 +329,47 @@ def get_img_from_points(h,w,points):
 
 
 #crop an image given a bounding box and padding
-def crop_img_bb(img,hand_bb,pad):
+def crop_img_bb(img,hand_bb,pad,show=False):
     h,w,_=img.shape
     hand_bb=[int(bb) for bb in hand_bb]
     img_crop=img[max(0,hand_bb[1]-pad):min(h,hand_bb[3]+pad),max(0,hand_bb[0]-pad):min(w,hand_bb[2]+pad)]
+    if show:
+        # Display the image
+        cv2.imshow("Image with Bounding Box", img_crop)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     return img_crop
 
+def get_crop_loc(center,low,high,len):
+    assert (high-low)>len, 'image is too small to crop'
+    if int(center+0.5*len)>=high:
+        crop_top=high
+        crop_low=high-len
+    elif int(center-0.5*len)<=low:
+        crop_low=low
+        crop_top=low+len
+    else:
+        crop_top=int(center+0.5*len)
+        crop_low=crop_top-len
+    return crop_low,crop_top
+
+# import cv2
+# import json
+# bb_path=r'D:\CPR_extracted\P0\s_0\kinect\hand_bbs.json'
+# img_path=r'D:\CPR_extracted\P0\s_0\kinect\color\02490.jpg'
+# img=cv2.imread(img_path)
+# with open(bb_path, 'r') as file:
+#     data = json.load(file)
+# bb=[int(b) for b in data['02490'].split(',')]
+
+# draw_bb(img_path,bb,show=True)
+
+# center=int(0.5*(bb[2]+bb[0])),int(0.5*(bb[3]+bb[1]))
+# width,height=bb[2]-bb[0],bb[3]-bb[1]
+# x_crop=get_crop_loc(center[0],0,img.shape[1],640)
+# y_crop=get_crop_loc(center[1],0,img.shape[0],480)
+# crop_bb=[x_crop[0],y_crop[0],x_crop[1],y_crop[1]]
+# img_crop=crop_img_bb(img,crop_bb,0,show=True)
 
 def moving_normalize(signal, window_size):
     # Initialize the normalized signal with zeros

@@ -19,6 +19,10 @@ import shutil
 import time
 import argparse
 import logging
+from PIL import Image, ImageTk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import json
+import threading
 
 # Set up logging configuration
 logging.basicConfig(filename='handdepth.log', level=logging.INFO)
@@ -627,12 +631,160 @@ def sync_imgs(data_root,out_path):
             with open(canon_bb_path, 'a') as f: 
                 f.write(canon_bb_str+'\n')      
 
+def select_imgs(source_path,target_path):
+    target_kinect_color=os.path.join(target_path,'kinect','color')
+    target_kinect_depth=os.path.join(target_path,'kinect','depth')
+    target_kinect_seg=os.path.join(target_path,'kinect','seg')
+    target_canon_color=os.path.join(target_path,'canon','color')
+    target_canon_depth=os.path.join(target_path,'canon','depth')
+    target_canon_seg=os.path.join(target_path,'canon','seg')
+    if not os.path.exists(target_kinect_color):
+        os.makedirs(target_kinect_color)
+    if not os.path.exists(target_kinect_depth):
+        os.makedirs(target_kinect_depth)
+    if not os.path.exists(target_kinect_seg):
+        os.makedirs(target_kinect_seg)
+    if not os.path.exists(target_canon_color):
+        os.makedirs(target_canon_color)
+    if not os.path.exists(target_canon_depth):
+        os.makedirs(target_canon_depth)
+    if not os.path.exists(target_canon_seg):
+        os.makedirs(target_canon_seg)
+    
+    def save_kinect_only():
+        global save_kinect,save_canon
+        print('saving kinect only...')
+        save_kinect=True
+        save_canon=False
+        root.destroy()
+    def trigger_save_kinect_only(event):
+        save_kinect_only()
+
+    def save_all():
+        global save_kinect,save_canon
+        print('saving all...')
+        save_kinect=True
+        save_canon=True
+        root.destroy()
+    def trigger_save_all(event):
+        save_all()
+
+    def ignore():
+        global save_kinect,save_canon
+        print('ignoring...')
+        save_kinect=False
+        save_canon=False
+        root.destroy()
+    def trigger_ignore(event):
+        ignore()
+
+    canon_dir=os.path.join(source_path,'canon')
+    kinect_dir=os.path.join(source_path,'kinect')
+    canon_bb_file=os.path.join(source_path,'canon','bbs.txt')
+    kinect_bb_file=os.path.join(source_path,'kinect','bbs.txt')
+    def get_bb_dict(bb_patth):
+        with open(bb_patth, 'r') as f:
+            lines = f.readlines()
+        bbs=[(l.strip().split(',')[0],l.strip().split(',')[1:]) for l in lines]
+        bb_dict={}
+        for bb in bbs:
+            bb_dict[bb[0]]=bb[1]
+        return bb_dict
+    canon_bb_dict=get_bb_dict(canon_bb_file)
+    kinect_bb_dict=get_bb_dict(kinect_bb_file)
+
+    img_names=canon_bb_dict.keys()
+    img_names=list(img_names)[:2000]
+    for img_name in img_names:
+        canon_img_path=os.path.join(canon_dir,'color',img_name+'.jpg')
+        canon_seg_path=os.path.join(canon_dir,'seg',img_name+'.png')
+        canon_seg = cv2.imread(canon_seg_path, cv2.IMREAD_GRAYSCALE)
+        canon_depth_path=os.path.join(canon_dir,'depth',img_name+'.png')
+        canon_depth=cv2.imread(canon_depth_path, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+        canon_bb=[int(b) for b in canon_bb_dict[img_name]]
+        canon_img=utils.draw_bb(canon_img_path,canon_bb,show=False)
+        mask_depth_canon=utils.show_img_overlay(canon_seg,canon_depth,alpha=0.7,show=False)
+
+        kinect_img_path=os.path.join(kinect_dir,'color',img_name+'.jpg')
+        kinect_depth_path=os.path.join(kinect_dir,'depth',img_name+'.png')
+        kinect_depth=cv2.imread(kinect_depth_path, cv2.IMREAD_GRAYSCALE | cv2.IMREAD_ANYDEPTH)
+        kinect_seg_path=os.path.join(kinect_dir,'seg',img_name+'.png')
+        kinect_seg=cv2.imread(kinect_seg_path,cv2.IMREAD_GRAYSCALE)
+        kinect_bb=[int(b) for b in kinect_bb_dict[img_name]]
+        kinect_img=utils.draw_bb(kinect_img_path,kinect_bb,show=False)
+
+        import io
+        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+        axs[0, 0].imshow(kinect_img)
+        axs[0, 0].set_title('Kinect Image')
+        axs[0, 1].imshow(kinect_depth)
+        axs[0, 1].set_title('Kinect Depth')
+        axs[0, 2].imshow(kinect_seg)
+        axs[0, 2].set_title('Kinect Mask')
+        axs[1, 0].imshow(canon_img)
+        axs[1, 0].set_title('Canon Image')
+        axs[1, 1].imshow(mask_depth_canon)
+        axs[1, 1].set_title('Canon Mask and Depth')
+        axs[1, 2].axis('off')  # Empty subplot
+        # Save the figure
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')  # You can use other formats as well like 'jpeg'
+        buf.seek(0)
+        # tmp_path=os.path.join(target_path,'tmp.png')
+        # fig.savefig(tmp_path)
+        plt.close()
+
+        def run_tkinter():
+            image=Image.open(buf)
+            global root
+            root = tk.Tk()
+            root.title(str(img_name))
+            root.geometry("+0+0")
+            tkimg = ImageTk.PhotoImage(image)
+            label = tk.Label(root, image=tkimg)
+            label.image = tkimg
+            label.pack()
+            # Create and place the buttons
+            kinect_btn = tk.Button(root, text="Save kinect", command=save_kinect_only)
+            kinect_btn.place(x=1200, y=600)
+            all_btn = tk.Button(root, text="Save_all", command=save_all)
+            all_btn.place(x=1200, y=760)
+            ignore_btn = tk.Button(root, text="Reject", command=ignore)
+            ignore_btn.place(x=1200, y=680)
+            root.bind('<Return>', trigger_save_all)
+            root.bind('<space>', trigger_save_kinect_only)
+            # Start the GUI event loop
+            root.focus_force()
+            root.mainloop()
+        run_tkinter()
+
+        #save data
+        if save_kinect:
+            shutil.copy(kinect_img_path, os.path.join(target_kinect_color,img_name+'.jpg'))
+            shutil.copy(kinect_depth_path, os.path.join(target_kinect_depth,img_name+'.png'))
+            shutil.copy(kinect_seg_path, os.path.join(target_kinect_seg,img_name+'.png'))
+            bb_dict={}
+            bb_dict[img_name]=kinect_bb
+            with open(os.path.join(target_path,'kinect','bb.json'), 'w') as f:
+                json.dump(bb_dict,f,indent=4)
+
+        if save_canon:
+            shutil.copy(canon_img_path, os.path.join(target_canon_color,img_name+'.jpg'))
+            cv2.imwrite(os.path.join(target_canon_depth,img_name+'.png'), (canon_depth).astype(np.uint16))
+            shutil.copy(canon_seg_path, os.path.join(target_canon_seg,img_name+'.png'))
+            bb_dict={}
+            bb_dict[img_name]=canon_bb
+            with open(os.path.join(target_path,'canon','bb.json'), 'w') as f:
+                json.dump(bb_dict,f,indent=4)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data Preparation')
     parser.add_argument('--data_root', type=str, default='D:/hand_depth_dataset/', help='Root directory of Canon data')
     parser.add_argument('--output_path', type=str, default='D:/hand_depth_extracted/', help='Output path for synchronized images')
     args = parser.parse_args()
-    sync_imgs(args.data_root,args.output_path)
+    # sync_imgs(args.data_root,args.output_path)
+    select_imgs(r'D:\hand_depth_extracted',r'D:\hand_depth_selected')
 
 
 
