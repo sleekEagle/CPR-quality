@@ -12,7 +12,10 @@ import matplotlib.pyplot as plt
 import torch.nn as nn   
 import logging
 # Set up logging
-logging.basicConfig(filename='blur_train.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Set up logging configuration
+logging.basicConfig(filename='blur_train.log', level=logging.INFO)
+# Add the following line at $PLACEHOLDER$
+logging.info('starting....')
 
 torch.manual_seed(2024)
 torch.cuda.manual_seed(2024)
