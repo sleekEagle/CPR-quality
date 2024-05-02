@@ -20,13 +20,15 @@ def eval(model,test_dataloader,device,conf):
         img,depth,blur,seg=batch 
         img,depth,blur,seg=img.to(device),depth.to(device),blur.to(device),seg.to(device)
         img=img.swapaxes(2,3).swapaxes(1,2)
-        pred_depth, pred_blur,_=model(img)
+        with torch.no_grad():
+            model.eval()
+            pred_depth, pred_blur,_=model(img)
 
-        mask=(seg>0) & (depth>0)
-        pred_depth_actual=pred_depth*conf.max_depth
-        GT_depth_actual=depth*conf.max_depth
-        rmse_error=torch.square(torch.mean((pred_depth_actual.squeeze()[mask]-GT_depth_actual[mask])**2))
-        total_error+=rmse_error
+            mask=(seg>0) & (depth>0)
+            pred_depth_actual=pred_depth*conf.max_depth
+            GT_depth_actual=depth*conf.max_depth
+            rmse_error=torch.square(torch.mean((pred_depth_actual.squeeze(dim=1)[mask]-GT_depth_actual[mask])**2))
+            total_error+=rmse_error.item()
     return total_error/len(test_dataloader)
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -45,15 +47,10 @@ def main(conf):
 
     #train
     for epoch in range(conf.train_epochs):
-        model.train()
         depth_loss,blur_loss=0,0
-        model=model.eval()
-        error=eval(model,test_dataloader,device,conf)
-        model=model.train()
-
 
         for i, batch in enumerate(train_dataloader):
-            print(f"training {i} of {len(test_dataloader)}",end='\r')
+            print(f"training {i} of {len(train_dataloader)}",end='\r')
             img,depth,blur,seg=batch 
             img,depth,blur,seg=img.to(device),depth.to(device),blur.to(device),seg.to(device)
             img=img.swapaxes(2,3).swapaxes(1,2)
@@ -61,8 +58,8 @@ def main(conf):
 
             optimizer.zero_grad()
             mask=(seg>0) & (depth>0)
-            d_loss = criterion(pred_depth.squeeze()[mask], depth[mask])
-            b_loss=criterion(pred_blur.squeeze()[mask], blur[mask])
+            d_loss = criterion(pred_depth.squeeze(dim=1)[mask], depth[mask])
+            b_loss=criterion(pred_blur.squeeze(dim=1)[mask], blur[mask])
             loss=d_loss+conf.lmbd*b_loss
             loss.backward()
             optimizer.step()
@@ -70,12 +67,12 @@ def main(conf):
             depth_loss += d_loss.item()
             blur_loss += b_loss.item()
 
-
-
-
-
-
-
+        print(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
+        scheduler.step()
+        if (epoch+1)%conf.eval_freq==0:
+            error=eval(model,test_dataloader,device,conf)
+            print(f'eval error: {error:.4f}')
+            model.train()
 
 if __name__ == "__main__":
     main()
