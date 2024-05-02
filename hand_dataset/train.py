@@ -12,10 +12,7 @@ import matplotlib.pyplot as plt
 import torch.nn as nn   
 import logging
 # Set up logging
-# Set up logging configuration
-logging.basicConfig(filename='blur_train.log', level=logging.INFO)
-# Add the following line at $PLACEHOLDER$
-logging.info('starting....')
+
 
 torch.manual_seed(2024)
 torch.cuda.manual_seed(2024)
@@ -40,6 +37,10 @@ def eval(model,test_dataloader,device,conf):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(conf):
+    #logging
+    logging.basicConfig(filename=f'blur_train_{conf.crop_size}.log', level=logging.INFO)
+    # Add the following line at $PLACEHOLDER$
+    logging.info('starting....')
     #setup dataset
     train_dataloader,test_dataloader=dataloader.get_dataloaders(conf)
 
