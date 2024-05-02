@@ -47,8 +47,13 @@ def main(conf):
     for epoch in range(conf.train_epochs):
         model.train()
         depth_loss,blur_loss=0,0
+        model=model.eval()
         error=eval(model,test_dataloader,device,conf)
+        model=model.train()
+
+
         for i, batch in enumerate(train_dataloader):
+            print(f"training {i} of {len(test_dataloader)}",end='\r')
             img,depth,blur,seg=batch 
             img,depth,blur,seg=img.to(device),depth.to(device),blur.to(device),seg.to(device)
             img=img.swapaxes(2,3).swapaxes(1,2)

@@ -35,22 +35,22 @@ class HandDepthDataset(Dataset):
 
         if self.mode=='train':
             self.transform = A.Compose([
-                A.PadIfNeeded(min_height=512, min_width=512, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.RandomCrop(width=512, height=512),
+                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+                A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
                 A.HorizontalFlip(p=0.5),
                 A.RandomBrightnessContrast(p=0.2),
                 A.Normalize(mean=(23.4359, 31.9525, 44.8473),std=(31.2212, 40.2346, 52.7526),normalization='image_per_channel')
                 ])
         elif self.mode=='test':
             self.transform = A.Compose([
-                A.PadIfNeeded(min_height=512, min_width=512, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.CenterCrop(width=512, height=512),
+                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+                A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
                 A.Normalize(mean=(23.4359, 31.9525, 44.8473),std=(31.2212, 40.2346, 52.7526),normalization='image_per_channel')
                 ])
         else:
             self.transform = A.Compose([
-                A.PadIfNeeded(min_height=512, min_width=512, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.CenterCrop(width=512, height=512),
+                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+                A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
                 ])
 
 

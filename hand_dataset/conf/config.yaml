@@ -13,10 +13,11 @@ max_blur: 5.8
 
 #*****train configs*****
 train_epochs: 100
-bs: 16
+bs: 12
 lr: 0.001
-crop_size: 512
+crop_size: 256
 lmbd: 0.2  # depth_loss + lmbd*blur_loss
+eval_freq: 10
 
  
 
