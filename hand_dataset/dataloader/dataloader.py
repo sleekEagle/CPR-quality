@@ -76,15 +76,21 @@ class HandDepthDataset(Dataset):
         seg=transformed['masks'][1]
 
         depth=depth.astype(np.float32)/1000.0
+        blur=-1
+        if self.conf.get_blur:
+            blur=np.abs(1/(depth+1e-5)-1)
+            blur[blur>1000]=0
+            if self.mode!='stats' and self.conf.normalize_blur:
+                blur=blur/self.conf.max_blur
         if self.mode!='stats' and self.conf.normalize_depth:
-            depth=depth/2.3
-        return img,depth,seg
+            depth=depth/self.conf.max_depth
+        return img,depth,blur,seg
     
 
 def get_dataloaders(conf):
     train_dataset = HandDepthDataset(conf,'train')
     train_dataloader = DataLoader(train_dataset, batch_size=conf.bs, shuffle=True)
-    test_dataset = HandDepthDataset(conf,'train')
+    test_dataset = HandDepthDataset(conf,'test')
     test_dataloader = DataLoader(test_dataset, batch_size=conf.bs, shuffle=True)
     return train_dataloader,test_dataloader
 
@@ -93,17 +99,24 @@ def main(conf):
     if conf.mode=='stats':
         dataset = HandDepthDataset(conf,'train')
         dataloader = DataLoader(dataset, batch_size=conf.bs, shuffle=True)
-        imgs,depths=torch.empty(0),torch.empty(0)
+        imgs,depths,blurs=torch.empty(0),torch.empty(0),torch.empty(0)
         for i, batch in enumerate(dataloader):
             print(f'{i}/{len(dataloader)} samples processed',end='\r')
-            img,depth,seg=batch 
+            img,depth,blur,seg=batch 
             imgs = torch.cat((imgs,img), dim=0)
             depths = torch.cat((depths, depth), dim=0)
+            blurs = torch.cat((blurs, blur), dim=0)
         d=depths[depths>0]
+        b=blurs[blurs>0]
         print(f'mean depth: {d.mean()}')
         print(f'min depth: {d.min()}')
         print(f'max depth: {d.max()}')
         print(f'std depth: {d.std()}')
+
+        print(f'mean blur: {b.mean()}')
+        print(f'min blur: {b.min()}')
+        print(f'max blur: {b.max()}')
+        print(f'std blur: {b.std()}')
 
         
         print(f'img mean: {imgs.view(-1,3).mean(dim=0)}')
@@ -112,7 +125,7 @@ def main(conf):
     elif conf.mode=='normal':
         train_dataset = HandDepthDataset(conf,'train')
         train_dataloader = DataLoader(train_dataset, batch_size=conf.bs, shuffle=True)
-        test_dataset = HandDepthDataset(conf,'train')
+        test_dataset = HandDepthDataset(conf,'test')
         test_dataloader = DataLoader(test_dataset, batch_size=conf.bs, shuffle=True)
 if __name__ == "__main__":
     main()
@@ -121,12 +134,19 @@ if __name__ == "__main__":
 
 ''''
 *******stats*******
-
+-----------*Canon dataset*-------
 depth:
 mean depth: 0.6976866722106934
 min depth: 0.15199999511241913
 max depth: 2.2119998931884766
 std depth: 0.3109252452850342
+
+blur:
+mean blur: 0.7680147886276245
+min blur: 1.0013580322265625e-05
+max blur: 5.710958957672119
+std blur: 0.6914953589439392
+
 
 image:
 mean: tensor([23.4359, 31.9525, 44.8473])
