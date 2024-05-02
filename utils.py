@@ -330,10 +330,16 @@ def get_img_from_points(h,w,points):
 
 #crop an image given a bounding box and padding
 def crop_img_bb(img,hand_bb,pad,show=False):
-    h,w,_=img.shape
+    if len(img.shape)==2:
+        h,w=img.shape
+    elif len(img.shape)==3:
+        h,w,_=img.shape
+    else:
+        raise Exception("Invalid image shape")
     hand_bb=[int(bb) for bb in hand_bb]
     img_crop=img[max(0,hand_bb[1]-pad):min(h,hand_bb[3]+pad),max(0,hand_bb[0]-pad):min(w,hand_bb[2]+pad)]
     if show:
+        import cv2
         # Display the image
         cv2.imshow("Image with Bounding Box", img_crop)
         cv2.waitKey(0)
