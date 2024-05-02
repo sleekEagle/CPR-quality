@@ -12,7 +12,7 @@ max_depth: 2.3
 max_blur: 5.8
 
 #*****train configs*****
-train_epochs: 100
+train_epochs: 10000
 bs: 8
 lr: 0.001
 crop_size: 256

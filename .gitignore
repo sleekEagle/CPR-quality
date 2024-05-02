@@ -12,3 +12,5 @@ kypt_transformer/*
 *.html
 *.json
 outputs/*
+hand_dataset/outputs/*
+
