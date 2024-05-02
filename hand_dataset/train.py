@@ -9,6 +9,10 @@ import torch
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
+import torch.nn as nn   
+import logging
+# Set up logging
+logging.basicConfig(filename='blur_train.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 torch.manual_seed(2024)
 torch.cuda.manual_seed(2024)
@@ -48,7 +52,6 @@ def main(conf):
     #train
     for epoch in range(conf.train_epochs):
         depth_loss,blur_loss=0,0
-
         for i, batch in enumerate(train_dataloader):
             print(f"training {i} of {len(train_dataloader)}",end='\r')
             img,depth,blur,seg=batch 
@@ -62,17 +65,22 @@ def main(conf):
             b_loss=criterion(pred_blur.squeeze(dim=1)[mask], blur[mask])
             loss=d_loss+conf.lmbd*b_loss
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
             optimizer.step()
 
             depth_loss += d_loss.item()
             blur_loss += b_loss.item()
 
         print(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
+        logging.info(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
         scheduler.step()
         if (epoch+1)%conf.eval_freq==0:
             error=eval(model,test_dataloader,device,conf)
             print(f'eval error: {error:.4f}')
+            logging.info(f'eval error: {error:.4f}')
             model.train()
+            #save model
+            torch.save(model.state_dict(), os.path.join(conf.chekpt_path,f'cpr_blur_model.pth'))
 
 if __name__ == "__main__":
     main()

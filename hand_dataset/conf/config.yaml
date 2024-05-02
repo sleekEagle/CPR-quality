@@ -4,7 +4,7 @@ train_part: ['P0','P2','P6','P8','P9','P10','P13','P17','P18','P19','P20','P23']
 test_part: ['P1','P3','P7','P12','P21']
 get_blur: True # get blur from the dataloader, applicable only when camera='canon'
 s1: 1 # focal distance of the canon camera (any constant would do)
-mode: 'stats' # 'stats': get stats of the whole dataset or 'normal': for normal training
+mode: 'train' # 'stats': get stats of the whole dataset or 'normal': for normal training
 normalize_img: True
 normalize_depth: True
 normalize_blur: True
@@ -17,7 +17,8 @@ bs: 8
 lr: 0.001
 crop_size: 256
 lmbd: 0.2  # depth_loss + lmbd*blur_loss
-eval_freq: 10
+eval_freq: 1
+chekpt_path: 'D:\models\CPR_quality'
 
  
 
