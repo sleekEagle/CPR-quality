@@ -69,7 +69,7 @@ def main(conf):
             b_loss=criterion(pred_blur.squeeze(dim=1)[mask], blur[mask])
             loss=d_loss+conf.lmbd*b_loss
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5, norm_type=2)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.25, norm_type=2)
             optimizer.step()
 
             depth_loss += d_loss.item()
