@@ -17,9 +17,11 @@ bs: 8
 lr: 0.001
 crop_size: 256
 lmbd: 0.2  # depth_loss + lmbd*blur_loss
-eval_freq: 1
+eval_freq: 10
 chekpt_path: 'D:\models\CPR_quality'
-norm_clip: 0.1
+norm_clip: 0.01
+opt_scheduler_step: 10
+
 
  
 

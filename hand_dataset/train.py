@@ -51,7 +51,7 @@ def main(conf):
 
     criterion = torch.nn.MSELoss()
     optimizer = optim.Adam(model_params, lr=conf.lr)
-    scheduler = StepLR(optimizer,step_size=500, gamma=0.5)
+    scheduler = StepLR(optimizer,step_size=conf.opt_scheduler_step, gamma=0.5)
 
     #train
     for epoch in range(conf.train_epochs):
@@ -78,6 +78,7 @@ def main(conf):
         print(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
         logging.info(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
         scheduler.step()
+        print(f'last lr: {scheduler.get_last_lr()}')
         if (epoch+1)%conf.eval_freq==0:
             error=eval(model,test_dataloader,device,conf)
             print(f'eval error: {error:.4f}')
