@@ -21,6 +21,11 @@ eval_freq: 10
 chekpt_path: 'D:\models\CPR_quality'
 norm_clip: 0.01
 opt_scheduler_step: 10
+infer:
+  infer_model: 'D:\models\CPR_quality\cpr_blur_model_256.pth'
+  eval: False
+  dataset_path: 'D:\canon_images'
+  save_path: 'D:\canon_blur_pred'
 
 
  

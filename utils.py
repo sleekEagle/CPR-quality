@@ -346,6 +346,11 @@ def crop_img_bb(img,hand_bb,pad,show=False):
         cv2.destroyAllWindows()
     return img_crop
 
+'''
+get crop  locations of given center
+len = crop size
+low,high = image bounds
+'''
 def get_crop_loc(center,low,high,len):
     assert (high-low)>len, 'image is too small to crop'
     if int(center+0.5*len)>=high:

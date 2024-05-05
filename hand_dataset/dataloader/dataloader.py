@@ -11,6 +11,38 @@ import numpy as np
 import albumentations as A
 import matplotlib.pyplot as plt
 
+def get_transforms(conf, mode):
+    if mode == 'train':
+        transforms = A.Compose([
+            A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+            A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
+            A.HorizontalFlip(p=0.5),
+            A.RandomBrightnessContrast(p=0.2),
+            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+        ])
+    elif mode == 'test':
+        transforms = A.Compose([
+            A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+            A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
+            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+        ])
+        
+    elif mode == 'infer_pad':
+        transforms = A.Compose([
+            A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+        ])
+    elif mode == 'infer_norm':
+        transforms = A.Compose([
+            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+        ])
+
+    else:
+        transforms = A.Compose([
+            A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
+            A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
+        ])
+    return transforms
+
 
 class HandDepthDataset(Dataset):
     def __init__(self, conf,mode):
@@ -33,25 +65,7 @@ class HandDepthDataset(Dataset):
             dict = json.load(file)
         self.bbs = dict
 
-        if self.mode=='train':
-            self.transform = A.Compose([
-                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
-                A.HorizontalFlip(p=0.5),
-                A.RandomBrightnessContrast(p=0.2),
-                A.Normalize(mean=(23.4359, 31.9525, 44.8473),std=(31.2212, 40.2346, 52.7526),normalization='image_per_channel')
-                ])
-        elif self.mode=='test':
-            self.transform = A.Compose([
-                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
-                A.Normalize(mean=(23.4359, 31.9525, 44.8473),std=(31.2212, 40.2346, 52.7526),normalization='image_per_channel')
-                ])
-        else:
-            self.transform = A.Compose([
-                A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-                A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
-                ])
+        self.transform = get_transforms(conf, self.mode)
 
 
     def __len__(self):
