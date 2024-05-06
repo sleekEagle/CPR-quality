@@ -10,6 +10,7 @@ import logging
 logging.basicConfig(filename='ext_canon.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
 logging.info('This is extract canon code')
+import numpy as np
 
 # get_ts_google(r'D:\CPR_data_raw\P0\s1\canon\MVI_1007\1955.png')
 
@@ -225,10 +226,105 @@ def get_ts_from_images(root_path,original_fps=30,target_fps=1):
             for i in range(len(intterp_ts_list)):
                 f.write(str(img_files[i])+','+str(intterp_ts_list[i])+'\n')
 
+def get_ts_canon_dataset_main(path):
+    pdirs=utils.list_subdirectories(path)
+    for p in pdirs:
+        sdirs=utils.get_dirs_with_str(os.path.join(path,p),'s',i=0,j=1)
+        for s in sdirs:
+            out_file=os.path.join(s,'timestamps.txt')
+            if os.path.exists(out_file):
+                print(f'{s} is already processed. Continuing...')
+                continue
+            print(f'processing: {s}')
+            img_dir=[s for s in utils.list_subdirectories(s) if (s.startswith('img') or s.startswith('MVI'))][0]
+            imgs=[os.path.basename(img) for img in utils.get_files_with_str(os.path.join(s,img_dir),'jpg')]
+            imgs.sort()
+            ts1=utils.get_ts_google(os.path.join(s,img_dir,imgs[0]),wait=5)
+            ts2=utils.get_ts_google(os.path.join(s,img_dir,imgs[-1]),wait=5)
+            assert ts1 and ts2, 'Error in getting timestamps'
+            ts1=utils.get_ms_from_ts(ts1)
+            ts2=utils.get_ms_from_ts(ts2)
+            assert (ts1 and ts2) , 'Error in getting timestamps'
+        
+            # ts_range = np.linspace(ts1, ts2, len(imgs))
+            # ts1=ts2 - 1000/30.4*len(imgs)
+            ts_range = np.linspace(ts1, ts2, len(imgs))
+
+            out_file=os.path.join(s,'timestamps.txt')
+            with open(out_file, 'w') as f:
+                for i in range(len(imgs)):
+                    f.write(imgs[i]+','+str(ts_range[i])+'\n')
+
+def select_inrange_canon_data():
+    kinect_path=r'D:\CPR_extracted'
+    canon_path=r'D:\canon_images_original'
+    canon_out_path=r'D:\CPR_dataset\canon_images_selected'
+
+    kinect_part_dirs=utils.get_dirs_with_str(kinect_path, 'P')
+    for kp in kinect_part_dirs:
+        kinect_s_dirs=utils.get_dirs_with_str(kp, 's')
+        for sd in kinect_s_dirs:
+            print(f'processing {sd}...')
+            ts_path=os.path.join(sd, 'kinect','kinect_ts.txt')
+            ts_list=np.array(utils.read_allnum_lines(ts_path))
+
+            out_dir=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd),'color')
+            if os.path.exists(out_dir):
+                print(f'{sd} is already processed. Continuing...')
+                continue
+
+            cdir_=os.path.join(canon_path, os.path.basename(kp))
+            if not os.path.exists(cdir_):
+                print(f'{cdir_} does not exist. Continuing...')
+                continue
+            canon_s_dir=utils.get_dirs_with_str(cdir_,'s',i=0,j=1)
+            c_dir_ts=[]
+            ts_vals=[]
+
+            for s in canon_s_dir:
+                ts_dir=os.path.join(s,'timestamps.txt')
+                with open(ts_dir, 'r') as f:
+                    canon_ts_list = f.readlines()
+                canon_ts_list=np.array([float(val.strip().split(',')[-1])/1000 for val in canon_ts_list])
+                c1=canon_ts_list[canon_ts_list>ts_list[0]]
+                c2=c1[c1<ts_list[-1]]
+                c_dir_ts.append((ts_dir,len(c2)))
+                ts_vals.append(canon_ts_list)
+
+            best_arg=np.argmax(np.array([t[1] for t in c_dir_ts]))
+            if c_dir_ts[best_arg][1]<30*5:
+                print('Not sufficient data in the canon dir. continuing...')
+                continue
+            best_dir=c_dir_ts[best_arg][0]
+            best_ts_vals=ts_vals[best_arg]
+            condition1=best_ts_vals>=ts_list[0]
+            condition2=best_ts_vals<=ts_list[-1]
+            and_cond=condition1 & condition2
+            select_cond=np.argwhere(and_cond)[:,0]
+            selected_ts=best_ts_vals[select_cond]
+            img_dir=[s for s in utils.list_subdirectories(os.path.dirname(best_dir)) if (s.startswith('img') or s.startswith('MVI'))][0]
+            imgs = utils.list_files(os.path.join(os.path.dirname(best_dir),img_dir), 'jpg')
+            imgs.sort()
+            selected_imgs=[imgs[i] for i in select_cond]
+
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+            for img in selected_imgs:
+                shutil.copy(os.path.join(os.path.dirname(best_dir),img_dir,img), os.path.join(out_dir,img))
+            #save ts
+            out_file=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd),'timestamps.txt')
+            with open(out_file, 'w') as f:
+                for i in range(len(selected_imgs)):
+                    f.write(selected_imgs[i]+','+str(selected_ts[i])+'\n')
+
+
+
 
 if __name__ == "__main__":
     # move_masks_into_data_dir()
-    get_ts_from_images(r'D:\hand_depth_dataset\canon')
+    # get_ts_from_images(r'D:\hand_depth_dataset\canon')
+    # get_ts_canon_dataset_main(r'D:\canon_images_original')
+    select_inrange_canon_data()
 
 
 
