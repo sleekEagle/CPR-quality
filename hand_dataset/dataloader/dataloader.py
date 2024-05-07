@@ -19,20 +19,20 @@ def get_transforms(conf, mode):
             A.HorizontalFlip(p=0.5),
             A.RandomBrightnessContrast(p=0.2),
             A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel'),
-            A.Resize(256,256)
+            # A.Resize(256,256)
         ])
     elif mode == 'test':
         transforms = A.Compose([
             A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
             A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
             A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel'),
-            A.Resize(256,256)
+            # A.Resize(256,256)
         ])
     elif mode == 'stats':
         transforms = A.Compose([
             A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
             A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
-            A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel')
+            # A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel')
         ])
 
     return transforms
