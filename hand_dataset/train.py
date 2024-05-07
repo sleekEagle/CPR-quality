@@ -59,14 +59,14 @@ def main(conf):
             depth_loss += d_loss.item()
             blur_loss += b_loss.item()
 
-        print(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
-        # logging.info(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
+        # print(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
+        logging.info(f"Epoch {epoch} depth loss: {depth_loss/len(train_dataloader)} blur loss: {blur_loss/len(train_dataloader)}")
         scheduler.step()
         print(f'last lr: {scheduler.get_last_lr()}')
         if (epoch+1)%conf.eval_freq==0:
             error=eval.eval_depth(model,test_dataloader,device,conf)
-            print(f'eval error: {error:.4f}')
-            # logging.info(f'eval error: {error:.4f}')
+            # print(f'eval error: {error:.4f}')
+            logging.info(f'eval error: {error:.4f}')
             model.train()
             #save model
             torch.save(model.state_dict(), os.path.join(conf.chekpt_path,f'cpr_blur_model_{conf.crop_size}.pth'))
