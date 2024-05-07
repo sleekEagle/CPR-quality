@@ -3,6 +3,8 @@ import utils
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import hydra
+import cv2
 # from sklearn.linear_model import RANSACRegressor
 # import pyransac3d as pyrsc
 # from scipy.interpolate import interp1d
@@ -161,66 +163,148 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot
     return output
 
 
-plot_3d=True
-plot_depth=True
-root_dir=r'D:\CPR_extracted'
-method='tracking'   #'mediapipe' or 'mmpose_finetuned_RHD2D'
-XYZ_file=f'hand_keypts_{method}_XYZ.json'
-output_file=f'performance_{method}.txt'
-output_file=os.path.join(root_dir,output_file)
 
-with open(output_file, 'a') as file:
-    subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
-    for subj_dir in subj_dirs:
-        session_dirs=utils.get_dirs_with_str(subj_dir,'s')
-        for session_dir in session_dirs:
-            if session_dir!=r'D:\CPR_extracted\P10\s_5':
+'''
+get xy and timestamps for a given session
+'''
+def get_xy_times(path,method):
+    #read ts file
+    ts_vals=utils.read_allnum_lines(os.path.join(path,'kinect_ts_interp.txt'))
+    xy_kypt_path=os.path.join(path,'wrist_keypts',f'hand_keypts_{method}.json')
+    img_names=[os.path.basename(img).split('.')[0] for img in utils.get_files_with_str(os.path.join(path,'color'),'.jpg')]
+    img_names.sort()
+    valid_img_names=[]
+    kypts=[]
+    valid_ts=[]
+    with open(xy_kypt_path, 'r') as file:
+        xy_kypts = json.load(file)
+        for k in xy_kypts.keys():
+            if not (k in xy_kypts.keys()):
                 continue
-            print(session_dir)
-            path=os.path.join(session_dir,'kinect')
-            if not os.path.exists(path):
-                file.write(session_dir+','+str(-1))
-                file.write("\n")
-                print('written')
+            if (len(xy_kypts[k]['x'])==0) or (len(xy_kypts[k]['y'])==0):
                 continue
-            init_output=read_XYZ(path,XYZ_file)
-            if (init_output==-1):
-                file.write(session_dir+','+str(-1))
-                file.write("\n")
-                print('written')
-                continue
-            XYZ_array = init_output['XYZ_array']
-            kinect_inter_depth_list=init_output['kinect_inter_depth_list']
-            kinect_ts_list=init_output['kinect_ts_list']
-            XYZ_idx_list=init_output['XYZ_idx_list']
-            if plot_3d:
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                ax.set_xlim(min(XYZ_array[:,0]), max(XYZ_array[:,0]))
-                ax.set_ylim(min(XYZ_array[:,1]), max(XYZ_array[:,1]))
-                ax.scatter(XYZ_array[:, 0], XYZ_array[:, 1], XYZ_array[:, 2])
-                ax.scatter(XYZ_array[0, 0], XYZ_array[0, 1], XYZ_array[0, 2], s=100, c='red')
-                # ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
-                # ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
-                ax.set_xlabel('X Axis')
-                ax.set_ylabel('Y Axis')
-                ax.set_zlabel('Z Axis')
-                plt.title('movement of the wrist in 3D space and plane detection')
-                plt.show()
-            output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot=False)
-            high_vals=output['high_vals']
-            low_vals=output['low_vals']
-            GT_depth=output['GT_depths']
-            depth_est=output['depths']
-            if plot_depth:
-                plt.plot(GT_depth)
-                plt.plot(depth_est)
-                plt.show()
-            error=np.mean(np.abs(GT_depth-depth_est))
-            print(f"The error is {error:.2f} mm")
-            file.write(session_dir+','+f"{error:.2f}")
-            file.write("\n")
-            print('written')
+            valid_img_names.append(k)
+            kypts.append((xy_kypts[k]['x'][0],xy_kypts[k]['y'][0]))
+            valid_ts.append(ts_vals[img_names.index(k)])
+    output={}
+    output['valid_img_names']=valid_img_names
+    output['kypts']=kypts
+    output['valid_ts']=valid_ts
+    return output
+
+
+path=r'D:\CPR_extracted\P0\s_0\kinect'
+
+def detect_CPR_rate_depth(path,config):
+    #detect peaks and valleys of the wrist movement
+    xy_out=get_xy_times(path,config.evaluate.method)
+    signal=np.array([k[1] for k in xy_out['kypts']])
+    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],show=False)
+
+    #detect CPR rate
+    p=(len(peaks)+len(valleys))/2
+    t=(xy_out['valid_ts'][-1]-xy_out['valid_ts'][0])/60
+    CPR_rate=p/t
+    print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
+
+    peak_times=np.array(xy_out['valid_ts'])[peaks]
+    valley_times=np.array(xy_out['valid_ts'])[valleys]
+    xy_vals_peaks=np.array(xy_out['kypts'])[peaks]
+    xy_vals_valleys=np.array(xy_out['kypts'])[valleys]
+    peak_img_names=[xy_out['valid_img_names'][i] for i in peaks]
+    valley_img_names=[xy_out['valid_img_names'][i] for i in valleys]
+
+    peak_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',peak_img_names[i]+'.png'),xy_vals_peaks[i][0],xy_vals_peaks[i][0]) for i in range(len(peak_img_names))])
+    valley_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',valley_img_names[i]+'.png'),xy_vals_valleys[i][0],xy_vals_valleys[i][0]) for i in range(len(valley_img_names))])
+
+    #get XYZ points
+    XYZ_peaks=[utils.get_XYZ_kinect(xy_vals_peaks[i][0],xy_vals_peaks[i][1],peak_depths[i]) for i in range(len(peak_img_names))]
+    XYZ_valleys=[utils.get_XYZ_kinect(xy_vals_valleys[i][0],xy_vals_valleys[i][1],valley_depths[i]) for i in range(len(valley_img_names))]
+    XYZ_peaks=np.array(XYZ_peaks)
+    XYZ_valleys=np.array(XYZ_valleys)
+    l=min(len(XYZ_peaks),len(XYZ_valleys))
+    XYZ_peaks=XYZ_peaks[:l]
+    XYZ_valleys=XYZ_valleys[:l]
+    CPR_depth= np.sum((XYZ_peaks-XYZ_valleys)**2,axis=1)**0.5
+    #remove outliers
+    median=np.median(CPR_depth)
+    mad=np.median(np.abs(CPR_depth-median))
+    outliers = np.abs(CPR_depth - median) / mad > 3
+    CPR_depth=CPR_depth[~outliers]
+    mean_CPR_depth=np.mean(CPR_depth)
+    print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
+
+    return mean_CPR_depth,CPR_rate
+
+
+
+
+
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(config):
+    mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(path,config)
+    # method=config.evaluate.method
+    # plot_3d=True
+    # plot_depth=True
+    # root_dir=r'D:\CPR_extracted'
+    # method='mediapipe'   #'mediapipe' or 'mmpose_finetuned_RHD2D'
+    # XYZ_file=f'hand_keypts_{method}_XYZ.json'
+    # output_file=f'performance_{method}.txt'
+    # output_file=os.path.join(root_dir,output_file)
+
+    # with open(output_file, 'a') as file:
+    #     subj_dirs=utils.get_dirs_with_str(root_dir, 'P')
+    #     for subj_dir in subj_dirs:
+    #         session_dirs=utils.get_dirs_with_str(subj_dir,'s')
+    #         for session_dir in session_dirs:
+    #             print(session_dir)
+    #             path=os.path.join(session_dir,'kinect')
+    #             if not os.path.exists(path):
+    #                 file.write(session_dir+','+str(-1))
+    #                 file.write("\n")
+    #                 print('written')
+    #                 continue
+    #             init_output=read_XYZ(path,XYZ_file)
+    #             if (init_output==-1):
+    #                 file.write(session_dir+','+str(-1))
+    #                 file.write("\n")
+    #                 print('written')
+    #                 continue
+    #             XYZ_array = init_output['XYZ_array']
+    #             kinect_inter_depth_list=init_output['kinect_inter_depth_list']
+    #             kinect_ts_list=init_output['kinect_ts_list']
+    #             XYZ_idx_list=init_output['XYZ_idx_list']
+    #             if plot_3d:
+    #                 fig = plt.figure()
+    #                 ax = fig.add_subplot(111, projection='3d')
+    #                 ax.set_xlim(min(XYZ_array[:,0]), max(XYZ_array[:,0]))
+    #                 ax.set_ylim(min(XYZ_array[:,1]), max(XYZ_array[:,1]))
+    #                 ax.scatter(XYZ_array[:, 0], XYZ_array[:, 1], XYZ_array[:, 2])
+    #                 ax.scatter(XYZ_array[0, 0], XYZ_array[0, 1], XYZ_array[0, 2], s=100, c='red')
+    #                 # ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2], s=100, c='yellow')
+    #                 # ax.plot_surface(x, y, z, alpha=0.5, rstride=100, cstride=100, color='green')
+    #                 ax.set_xlabel('X Axis')
+    #                 ax.set_ylabel('Y Axis')
+    #                 ax.set_zlabel('Z Axis')
+    #                 plt.title('movement of the wrist in 3D space and plane detection')
+    #                 plt.show()
+    #             output=getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot=False)
+    #             high_vals=output['high_vals']
+    #             low_vals=output['low_vals']
+    #             GT_depth=output['GT_depths']
+    #             depth_est=output['depths']
+    #             if plot_depth:
+    #                 plt.plot(GT_depth)
+    #                 plt.plot(depth_est)
+    #                 plt.show()
+    #             error=np.mean(np.abs(GT_depth-depth_est))
+    #             print(f"The error is {error:.2f} mm")
+    #             file.write(session_dir+','+f"{error:.2f}")
+    #             file.write("\n")
+    #             print('written')
+
+if __name__ == "__main__":
+    main()
 
 #detect planes from data
 # plane1 = pyrsc.Plane()

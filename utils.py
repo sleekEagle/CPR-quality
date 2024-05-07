@@ -26,6 +26,23 @@ def get_XYZ_kinect(x,y,depth):
     Z=depth
     return X,Y,Z
 
+def get_XYZ_canon(x,y,depth):
+    X=(x-canon_k[0,2])*depth/canon_k[0,0]
+    Y=(y-canon_k[1,2])*depth/canon_k[1,1]
+    Z=depth
+    return X,Y,Z
+
+'''
+given x,y coordinates, get the depth value after taking mean
+'''
+def get_depth_val_from_xy(depth_path,x,y):
+    import cv2
+    depth_img_path=os.path.join(depth_path)
+    depth_img=cv2.imread(depth_img_path,cv2.IMREAD_UNCHANGED)
+    depth=np.mean(depth_img[int(y)-3:int(y)+3,int(x)-3:int(x)+3])
+    return depth
+
+
 '''
 project 3D points to 2D using the camera matrix K
 '''
