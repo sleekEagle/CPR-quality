@@ -11,6 +11,8 @@ data_root=r'D:\CPR_extracted'
 participants=utils.get_dirs_with_str(data_root,'P')
 n_sessions=0
 CPR_times=[]
+CPR_depths=[]
+CPR_rates=[]
 for p in participants:
     s_dirs=utils.get_dirs_with_str(os.path.join(data_root,p),'s')
     n_sessions+=len(s_dirs)
@@ -26,13 +28,36 @@ for p in participants:
         gt_depth_path=os.path.join(s,'depth_sensor.txt')
         depth_vals=np.array(utils.read_allnum_lines(gt_depth_path))
         depth_ts=np.array(depth_ts)
+        depth_ts=depth_ts-depth_ts[0]
+        depth_vals=depth_vals-depth_vals[0]
         GT_peaks,GT_valleys=utils.detect_peaks_and_valleys_depth_sensor(depth_vals,depth_ts,show=False)
-        plt.plot(depth_ts,depth_vals)
-        plt.scatter(depth_ts[GT_peaks], depth_vals[GT_peaks], c='r', label='Peaks')
-        plt.scatter(depth_ts[GT_valleys], depth_vals[GT_valleys], c='g', label='Valleys')
-        plt.legend()
-        plt.show()
-        pass
+        CPR_rate=(len(GT_peaks)+len(GT_valleys))/2/depth_ts[-1]*60
+        CPR_rates.append(CPR_rate)
+        # plt.plot(depth_ts,depth_vals,c='#10439F')
+        # plt.scatter(depth_ts[GT_peaks], depth_vals[GT_peaks], c='#F27BBD', label='Peaks')
+        # plt.scatter(depth_ts[GT_valleys], depth_vals[GT_valleys], c='#606C5D', label='Valleys')
+        # plt.legend()
+        # plt.xlabel('Time (seconds)')
+        # plt.ylabel('Depth values (mm)')
+        # # plt.savefig(r'C:\Users\lahir\Downloads\peak_detection.png', dpi=1200)
+        # plt.show()
+        d_high=depth_vals[GT_peaks]
+        d_low=depth_vals[GT_valleys]
+        d_high=d_high[:min(len(d_high),len(d_low))]
+        d_low=d_low[:min(len(d_high),len(d_low))]
+        d_diff=np.abs(d_high-d_low)
+        CPR_depths.extend(d_diff)
+        #*************************************
+pass
+CPR_rates=np.array(CPR_rates)
+CPR_rates=CPR_rates[CPR_rates>0]
+
+plt.hist(CPR_depths,color='#10439F',bins=25)
+plt.xlabel('CPR Depth (mm)')
+plt.ylabel('Number of sessions')
+plt.savefig(r'C:\Users\lahir\Downloads\CPR_depth_hist.png', dpi=600)
+plt.show()
+
 
 
 
