@@ -18,29 +18,22 @@ def get_transforms(conf, mode):
             A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
             A.HorizontalFlip(p=0.5),
             A.RandomBrightnessContrast(p=0.2),
-            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+            A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel'),
+            # A.Resize(256,256)
         ])
     elif mode == 'test':
         transforms = A.Compose([
             A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
             A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
-            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+            A.Normalize(mean=(33.4706, 45.6208, 64.9402), std=(31.5944, 39.3640, 49.9791), normalization='image_per_channel'),
+            # A.Resize(256,256)
         ])
-        
-    elif mode == 'infer_pad':
+    elif mode == 'stats':
         transforms = A.Compose([
             A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-        ])
-    elif mode == 'infer_norm':
-        transforms = A.Compose([
-            A.Normalize(mean=(23.4359, 31.9525, 44.8473), std=(31.2212, 40.2346, 52.7526), normalization='image_per_channel')
+            A.RandomCrop(width=conf.crop_size, height=conf.crop_size),
         ])
 
-    else:
-        transforms = A.Compose([
-            A.PadIfNeeded(min_height=conf.crop_size, min_width=conf.crop_size, border_mode=cv2.BORDER_CONSTANT, value=[0, 0, 0]),
-            A.CenterCrop(width=conf.crop_size, height=conf.crop_size),
-        ])
     return transforms
 
 
@@ -64,8 +57,10 @@ class HandDepthDataset(Dataset):
         with open(hand_bb_path, 'r') as file:
             dict = json.load(file)
         self.bbs = dict
-
-        self.transform = get_transforms(conf, self.mode)
+        if self.conf.data_out!='stats':
+            self.transform = get_transforms(conf, self.mode)
+        else :
+            self.transform = get_transforms(conf, 'stats')
 
 
     def __len__(self):
@@ -94,9 +89,9 @@ class HandDepthDataset(Dataset):
         if self.conf.get_blur:
             blur=np.abs(1/(depth+1e-5)-1)
             blur[blur>1000]=0
-            if self.conf.mode!='stats' and self.conf.normalize_blur:
+            if self.conf.data_out !='stats' and self.conf.normalize_blur:
                 blur=blur/self.conf.max_blur
-        if self.conf.mode!='stats' and self.conf.normalize_depth:
+        if self.conf.data_out !='stats' and self.conf.normalize_depth:
             depth=depth/self.conf.max_depth
         return img,depth,blur,seg
     
@@ -110,8 +105,8 @@ def get_dataloaders(conf):
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(conf):
-    if conf.mode=='stats':
-        dataset = HandDepthDataset(conf,'train')
+    if conf.data_out=='stats':
+        dataset = HandDepthDataset(conf,'other')
         dataloader = DataLoader(dataset, batch_size=conf.bs, shuffle=True)
         imgs,depths,blurs=torch.empty(0),torch.empty(0),torch.empty(0)
         for i, batch in enumerate(dataloader):
@@ -145,7 +140,7 @@ def main(conf):
         print(f'img mean: {imgs.view(-1,3).mean(dim=0)}')
         print(f'img std: {imgs.view(-1,3).std(dim=0)}')
     
-    elif conf.mode=='normal':
+    else:
         train_dataset = HandDepthDataset(conf,'train')
         train_dataloader = DataLoader(train_dataset, batch_size=conf.bs, shuffle=True)
         test_dataset = HandDepthDataset(conf,'test')

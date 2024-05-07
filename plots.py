@@ -59,6 +59,35 @@ plt.savefig(r'C:\Users\lahir\Downloads\CPR_depth_hist.png', dpi=600)
 plt.show()
 
 
+#********plot smartwatch data******
+path=r'D:\CPR_extracted\P0\s_0\smartwatch\smartwatch_interp_100Hz.txt'
+sw_data=utils.get_smartwatch_data(path)
+t=sw_data['time']
+t=t-t[0]
+i,j=1000,1200
+plt.figure(dpi=1200)
+lines1,=plt.plot(t[i:j],sw_data['acc_x'][i:j],c='#10439F',label='acc_x',linewidth=2)
+lines2,=plt.plot(t[i:j],sw_data['acc_y'][i:j],c='#F27BBD',label='acc_y',linewidth=2)
+lines3,=plt.plot(t[i:j],sw_data['acc_z'][i:j],c='#606C5D',label='acc_z',linewidth=2)
+lines4,=plt.plot(t[i:j],sw_data['gyro_x'][i:j],c='#10439F',linestyle=':',label='gyro_x',linewidth=2)
+lines5,=plt.plot(t[i:j],sw_data['gyro_y'][i:j],c='#F27BBD',linestyle=':',label='gyro_y',linewidth=2)
+lines6,=plt.plot(t[i:j],sw_data['gyro_z'][i:j],c='#606C5D',linestyle=':',label='gyro_z',linewidth=2)
+lines7,=plt.plot(t[i:j],sw_data['mag_x'][i:j],c='#FC4100',linestyle='-.',label='mag_x',linewidth=2)
+lines8,=plt.plot(t[i:j],sw_data['mag_y'][i:j],c='#2C4E80',linestyle='-.',label='mag_y',linewidth=2)
+lines9,=plt.plot(t[i:j],sw_data['mag_z'][i:j],c='#30E3DF',linestyle='-.',label='mag_z',linewidth=2)
+# first_legend = plt.legend(handles=[lines1, lines2,lines3], loc=(0.1,0.8))
+# plt.gca().add_artist(first_legend)
+# plt.legend(handles=[lines4,lines5,lines6,lines7,lines8,lines9],  loc=(0.69, 0.63))
+# plt.xlabel('Time (seconds)')
+# plt.ylabel('Sensor values')
+# plt.show()
+plt.savefig(r'C:\Users\lahir\Downloads\sw_data_zoomed_fat.png')
+
+
+
+    
+
+
 
 
 path=r'D:\CPR_data_raw\P0\s1\gopro\GH010243_HERO9 Black-ACCL.csv'
