@@ -94,9 +94,9 @@ class HandDepthDataset(Dataset):
         if self.conf.get_blur:
             blur=np.abs(1/(depth+1e-5)-1)
             blur[blur>1000]=0
-            if self.mode!='stats' and self.conf.normalize_blur:
+            if self.conf.mode!='stats' and self.conf.normalize_blur:
                 blur=blur/self.conf.max_blur
-        if self.mode!='stats' and self.conf.normalize_depth:
+        if self.conf.mode!='stats' and self.conf.normalize_depth:
             depth=depth/self.conf.max_depth
         return img,depth,blur,seg
     
@@ -131,6 +131,15 @@ def main(conf):
         print(f'min blur: {b.min()}')
         print(f'max blur: {b.max()}')
         print(f'std blur: {b.std()}')
+
+
+        d_np=d.cpu().numpy()
+        plt.hist(d_np,color='#10439F',bins=50)
+        plt.xlabel('Depth (m)')
+        plt.ylabel('Frequency')
+        plt.savefig(r'C:\Users\lahir\Downloads\depth_dataset_stats.png', dpi=600)
+        plt.show()
+
 
         
         print(f'img mean: {imgs.view(-1,3).mean(dim=0)}')
