@@ -7,6 +7,7 @@ import utils
 import numpy as np
 import cv2
 import json
+import hydra
 
 # Define your custom dataset class
 class CPR_dataset(Dataset):
@@ -125,6 +126,7 @@ def get_dataloaders(conf):
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True)
 
     return train_dataloader, test_dataloader
+
 
     # for batch in train_dataloader:
     #     print(batch)

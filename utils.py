@@ -136,6 +136,58 @@ def read_allnum_lines(path):
             pass
     return values
 
+# read smartwatch data from file
+'''
+file format: ts, accx, accy, accz, gyrox, gyroy, gyroz, magx, magy, magz
+'''
+def get_smartwatch_data(path):
+    with open(path, 'r') as file:
+        lines = file.readlines()
+        data = [line.strip().split() for line in lines]
+
+        time = [float(row[0]) for row in data]
+        acc_x = [float(row[1]) for row in data]
+        acc_y = [float(row[2]) for row in data]
+        acc_z = [float(row[3]) for row in data]
+        gyro_x = [float(row[4]) for row in data]
+        gyro_y = [float(row[5]) for row in data]
+        gyro_z = [float(row[6]) for row in data]
+        mag_x = [float(row[7]) for row in data]
+        mag_y = [float(row[8]) for row in data]
+        mag_z = [float(row[9]) for row in data]
+        out={}
+        out['time']=np.array(time)
+        out['acc_x']=np.array(acc_x)
+        out['acc_y']=np.array(acc_y)
+        out['acc_z']=np.array(acc_z)
+        out['gyro_x']=np.array(gyro_x)
+        out['gyro_y']=np.array(gyro_y)
+        out['gyro_z']=np.array(gyro_z)
+        out['mag_x']=np.array(mag_x)
+        out['mag_y']=np.array(mag_y)
+        out['mag_z']=np.array(mag_z)
+        return out
+#get gopto IMU data
+'''
+path: path to the gopro acc or gyr file
+timestamp is in seconds
+'''
+def get_gopro_data(path):
+    with open(path, 'r') as file:
+        lines = file.readlines()
+        data = [line.strip().split(',') for line in lines]
+        data=data[1:]
+        ts=np.array([float(row[0]) for row in data])/1000.0
+        data_x=[float(row[2]) for row in data]
+        data_y=[float(row[3]) for row in data]
+        data_z=[float(row[4]) for row in data]
+        out={}
+        out['time']=np.array(ts)
+        out['data_x']=np.array(data_x)
+        out['data_y']=np.array(data_y)
+        out['data_z']=np.array(data_z)
+        return out
+
 
 '''
 in_values: values in the input signal
@@ -424,6 +476,22 @@ def find_peaks_and_valleys(signal, distance=10,height=0.2,prominence=(None, None
     if len(peaks)>1:
         best_idx=np.argmax([p_properties['prominences'].mean(),v_properties['prominences'].mean()])
     return peaks, valleys,best_idx
+
+'''
+Detect peaks and valleys of depth sensor values 
+This does filtering, etc. specific to the depth sensor data
+'''
+def detect_peaks_and_valleys_depth_sensor(depth_vals,depth_ts,show=False):
+    t=(depth_ts[-1]-depth_ts[0])/60
+    #equally spaced ts
+    ts_new=np.linspace(0,depth_ts[-1]-depth_ts[0],len(depth_ts))
+    depth_ts=np.array(depth_ts)-depth_ts[0]
+    depth_vals_norm_=moving_normalize(depth_vals, 100)
+    num_zero_crossings = len(np.where(np.diff(np.sign(depth_vals_norm_)))[0])/t
+    dist=int(1/num_zero_crossings*3000)
+    depth_vals_norm=moving_normalize(depth_vals, 100)
+    GT_peaks,GT_valleys,idx=find_peaks_and_valleys(depth_vals_norm,distance=dist,height=0.2,plot=show)
+    return GT_peaks,GT_valleys
 
 def moving_average(x, window_size):
     return np.convolve(x, np.ones(window_size)/window_size, mode='valid')

@@ -49,7 +49,7 @@ def show_video(dir_path,show_kypts,bb,model):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root_dir", type=str, default="D:\\CPR_extracted\\", help="Path to data directory")
-    parser.add_argument("-p", type=str, default="P1", help="Path to participant directory")
+    parser.add_argument("-p", type=str, default="P0", help="Path to participant directory")
     parser.add_argument("-s", type=str, default="s_2", help="Path to session directory")
     parser.add_argument("--kypts", type=bool, default=True, help="Should kypts be displayed")
     parser.add_argument("--bb", type=bool, default=True, help="Should bounding bx be displayed")

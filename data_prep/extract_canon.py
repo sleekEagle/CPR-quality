@@ -266,6 +266,9 @@ def select_inrange_canon_data():
         for sd in kinect_s_dirs:
             print(f'processing {sd}...')
             ts_path=os.path.join(sd, 'kinect','kinect_ts.txt')
+            if not os.path.exists(ts_path):
+                print(f'{ts_path} does not exist. Continuing...')
+                continue
             ts_list=np.array(utils.read_allnum_lines(ts_path))
 
             out_dir=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd),'color')

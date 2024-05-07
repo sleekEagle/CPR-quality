@@ -281,8 +281,7 @@ def sync_imgs(data_root,out_path):
         k_bb_path=os.path.join(out_path,'kinect','bbs.txt')
         canon_bb_path=os.path.join(out_path,'canon','bbs.txt')
         part_name=dir.split('_')[0]
-        if part_name in ['P21','P23','P20','P1','P18','P2','P8','P12','P17','P6','P7']:
-            continue
+
         ts_path=os.path.join(kinect_root,dir,'ts.txt')
         with open(ts_path, 'r') as f:
             lines = f.readlines()
@@ -311,6 +310,7 @@ def sync_imgs(data_root,out_path):
             canon_ts_list.extend(canon_ts)
 
         for ind in indices:
+            if ind<300: continue
             canon_color_file=os.path.join(out_path,'canon','color',part_name+'_'+str(ind)+'.jpg')
             canon_depth_file=os.path.join(out_path,'canon','depth',part_name+'_'+str(ind)+'.png')
             canon_seg_file=os.path.join(out_path,'canon','seg',part_name+'_'+str(ind)+'.png')
@@ -322,7 +322,7 @@ def sync_imgs(data_root,out_path):
             if os.path.exists(canon_color_file) and os.path.exists(canon_depth_file) and os.path.exists(canon_seg_file) and os.path.exists(kinect_color_file) and os.path.exists(kinect_depth_file) and os.path.exists(kinect_seg_file):
                 print('files already exist. continuing...')
                 logging.info('files already exist. continuing...')
-                continue
+                # continue
 
             ts=kinect_ts[ind]
             k_file=kinect_files[ind]
@@ -464,6 +464,45 @@ def sync_imgs(data_root,out_path):
             upper_center=np.asarray(pcd_upper.points).mean(axis=0)
             lower_center=np.asarray(pcd_lower.points).mean(axis=0)
             tr=upper_center-lower_center
+
+
+            '''
+            delete
+            '''
+            # vis = o3d.visualization.Visualizer()
+            # vis.create_window()
+
+            # vis.add_geometry(pcd_lower)
+
+            # vis.update_geometry(pcd_lower)
+            # vis.poll_events()
+            # vis.update_renderer()
+
+            # image = vis.capture_screen_float_buffer(do_render=True)
+            # image_np = (np.asarray(image) * 255).astype(np.uint8)
+            # image_pil = o3d.geometry.Image(image_np)
+            # o3d.io.write_image(r"C:\Users\lahir\Downloads\output_image.png", image_pil)
+            # vis.destroy_window()
+
+
+
+            # pc1=o3d.geometry.PointCloud()
+            # pc1.points=pcd_lower.points
+
+            # pc2=o3d.geometry.PointCloud()
+            # pc2.points=pcd_lower.points
+
+            # pc2.translate((0,0,100), relative=True)
+
+            # pc3=o3d.geometry.PointCloud()
+            # pc3.points=pcd_lower.points
+            # pc3.translate((0,0,40), relative=True)
+
+            # o3d.visualization.draw_geometries([pc1,pc2,pc3], window_name="Original Point Clouds")
+
+            '''
+            end delete
+            '''
             # np.asarray(pcd_lower.points) + (upper_center-lower_center)
             # p = o3d.geometry.PointCloud()
             # p.points=o3d.utility.Vector3dVector(np.asarray(pcd_lower.points) + (upper_center-lower_center))
@@ -783,8 +822,8 @@ if __name__ == "__main__":
     parser.add_argument('--data_root', type=str, default='D:/hand_depth_dataset/', help='Root directory of Canon data')
     parser.add_argument('--output_path', type=str, default='D:/hand_depth_extracted/', help='Output path for synchronized images')
     args = parser.parse_args()
-    # sync_imgs(args.data_root,args.output_path)
-    select_imgs(r'D:\hand_depth_extracted',r'D:\hand_depth_selected')
+    sync_imgs(args.data_root,args.output_path)
+    # select_imgs(r'D:\hand_depth_extracted',r'D:\hand_depth_selected')
 
 
 

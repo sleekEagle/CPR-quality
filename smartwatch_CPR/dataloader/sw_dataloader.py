@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import json
 from scipy.signal import gaussian
+import hydra
 
 # Define your custom dataset class
 class SW_dataset(Dataset):
@@ -121,7 +122,9 @@ def get_data_stats(conf):
     get_stats(test_dataloader)
 
 
-
+@hydra.main(version_base=None, config_path="../conf", config_name="config")
+def main(conf):
+    get_data_stats(conf)
 
 
 # # Iterate over the dataloader
