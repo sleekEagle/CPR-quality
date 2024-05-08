@@ -181,7 +181,11 @@ def get_xy_times(path,method):
         for k in xy_kypts.keys():
             if not (k in xy_kypts.keys()):
                 continue
+            if len(xy_kypts[k].keys())==0:
+                continue
             if (len(xy_kypts[k]['x'])==0) or (len(xy_kypts[k]['y'])==0):
+                continue
+            if k not in img_names:
                 continue
             valid_img_names.append(k)
             kypts.append((xy_kypts[k]['x'][0],xy_kypts[k]['y'][0]))
@@ -191,9 +195,6 @@ def get_xy_times(path,method):
     output['kypts']=kypts
     output['valid_ts']=valid_ts
     return output
-
-
-path=r'D:\CPR_extracted\P0\s_0\kinect'
 
 def detect_CPR_rate_depth(path,config):
     #detect peaks and valleys of the wrist movement
@@ -214,8 +215,8 @@ def detect_CPR_rate_depth(path,config):
     peak_img_names=[xy_out['valid_img_names'][i] for i in peaks]
     valley_img_names=[xy_out['valid_img_names'][i] for i in valleys]
 
-    peak_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',peak_img_names[i]+'.png'),xy_vals_peaks[i][0],xy_vals_peaks[i][0]) for i in range(len(peak_img_names))])
-    valley_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',valley_img_names[i]+'.png'),xy_vals_valleys[i][0],xy_vals_valleys[i][0]) for i in range(len(valley_img_names))])
+    peak_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',peak_img_names[i]+'.png'),xy_vals_peaks[i][0],xy_vals_peaks[i][1]) for i in range(len(peak_img_names))])
+    valley_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',valley_img_names[i]+'.png'),xy_vals_valleys[i][0],xy_vals_valleys[i][1]) for i in range(len(valley_img_names))])
 
     #get XYZ points
     XYZ_peaks=[utils.get_XYZ_kinect(xy_vals_peaks[i][0],xy_vals_peaks[i][1],peak_depths[i]) for i in range(len(peak_img_names))]
@@ -229,7 +230,7 @@ def detect_CPR_rate_depth(path,config):
     #remove outliers
     median=np.median(CPR_depth)
     mad=np.median(np.abs(CPR_depth-median))
-    outliers = np.abs(CPR_depth - median) / mad > 3
+    outliers = np.abs(CPR_depth - median) / mad > 4
     CPR_depth=CPR_depth[~outliers]
     mean_CPR_depth=np.mean(CPR_depth)
     print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
@@ -237,12 +238,43 @@ def detect_CPR_rate_depth(path,config):
     return mean_CPR_depth,CPR_rate
 
 
+def detect_CPR_rate_depth_GT(path):
+    # detect_peaks_and_valleys_depth_sensor
+    depth_path=os.path.join(path,'depth_sensor.txt')
+    ts_path=os.path.join(path,'depth_sensor_ts.txt')
+    depth_vals=np.array(utils.read_allnum_lines(depth_path))
+    ts_vals=np.array(utils.read_allnum_lines(ts_path))
+    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(depth_vals,ts_vals,show=False)
+    CPR_rate=(len(peaks)+len(valleys))/2/(ts_vals[-1]-ts_vals[0])*60
+    print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
+    peak_depths=depth_vals[peaks]
+    valley_depths=depth_vals[valleys]
+    l=min(len(peak_depths),len(valley_depths))
+    peak_depths=peak_depths[:l]
+    valley_depths=valley_depths[:l]
+    CPR_depth=np.abs(peak_depths-valley_depths)
+    mean_CPR_depth=np.mean(CPR_depth)
+    print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
 
-
+    return mean_CPR_depth,CPR_rate
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
-    mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(path,config)
+    out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth.txt')
+    with open(out_path, 'a') as file:
+        file.write("path,mean_CPR_depth,CPR_rate,mean_CPR_depth_GT,CPR_rate_GT")
+        file.write("\n")
+    part_dirs=utils.get_dirs_with_str(config.data_root,'P')
+    for p in part_dirs:
+        print(f'Processing {p}....')
+        ses_dirs=utils.get_dirs_with_str(p,'s')
+        for path in ses_dirs:
+            mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path,'kinect'),config)
+            mean_CPR_depth_GT,CPR_rate_GT=detect_CPR_rate_depth_GT(path)
+            with open(out_path, 'a') as file:
+                file.write(f"{path},{mean_CPR_depth:.2f},{CPR_rate:.2f},{mean_CPR_depth_GT:.2f},{CPR_rate_GT:.2f}")
+                file.write("\n")
+
     # method=config.evaluate.method
     # plot_3d=True
     # plot_depth=True

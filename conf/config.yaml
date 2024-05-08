@@ -1,6 +1,7 @@
 data_root: 'D:\CPR_extracted'
 evaluate:
   method: 'mediapipe'
+  result_path: 'D:\CPR_extracted\results'
 smartwatch:
   #Android sensor codes
   TYPE_ACCELEROMETER: 1
