@@ -169,6 +169,8 @@ get xy and timestamps for a given session
 '''
 def get_xy_times(path,method):
     #read ts file
+    if not os.path.exists(os.path.join(path,'kinect_ts_interp.txt')):
+        return -1
     ts_vals=utils.read_allnum_lines(os.path.join(path,'kinect_ts_interp.txt'))
     xy_kypt_path=os.path.join(path,'wrist_keypts',f'hand_keypts_{method}.json')
     img_names=[os.path.basename(img).split('.')[0] for img in utils.get_files_with_str(os.path.join(path,'color'),'.jpg')]
@@ -198,9 +200,29 @@ def get_xy_times(path,method):
 
 def detect_CPR_rate_depth(path,config):
     #detect peaks and valleys of the wrist movement
-    xy_out=get_xy_times(path,config.evaluate.method)
+    try:
+        xy_out=get_xy_times(path,config.evaluate.method)
+    except:
+        print(f'exception in {path}')
+        return -1,-1
+    if xy_out==-1:
+        return -1,-1
     signal=np.array([k[1] for k in xy_out['kypts']])
-    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],show=False)
+    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],mul=3500,show=False)
+
+    #plot
+    # t=np.array(xy_out['valid_ts'])
+    # t=t-t[0]
+    # plt.figure(dpi=800)
+    # plt.scatter(t[peaks], signal[peaks], c='red',label='Peaks')
+    # plt.scatter(t[valleys], signal[valleys], c='green',label='Valleys')
+    # plt.plot(t,signal,linewidth=1)
+    # plt.xlabel('Time (seconds)', fontsize=18)
+    # plt.ylabel('Wrist position (pixels): y-axis', fontsize=18)
+    # plt.legend()
+    # plt.xlim(45,67.5)
+    # plt.ylim(340,385)
+    # plt.savefig(r'C:\Users\lahir\Downloads\visual_peak_detection.png')
 
     #detect CPR rate
     p=(len(peaks)+len(valleys))/2
@@ -261,19 +283,54 @@ def detect_CPR_rate_depth_GT(path):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
     out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth.txt')
-    with open(out_path, 'a') as file:
-        file.write("path,mean_CPR_depth,CPR_rate,mean_CPR_depth_GT,CPR_rate_GT")
-        file.write("\n")
+    existing_paths=[]
+    if os.path.exists(out_path):
+        with open(out_path, 'r') as file:
+            lines = file.readlines()
+            if len(lines)>1:
+                lines=lines[1:]
+                existing_paths=[l.strip().split(',')[0] for l in lines]
+    else:
+        with open(out_path, 'a') as file:
+            file.write("path,mean_CPR_depth,CPR_rate,mean_CPR_depth_GT,CPR_rate_GT")
+            file.write("\n")
     part_dirs=utils.get_dirs_with_str(config.data_root,'P')
+    mean_CPR_depths,CPR_rates,mean_CPR_depths_GT,CPR_rates_GT=[],[],[],[]
     for p in part_dirs:
         print(f'Processing {p}....')
         ses_dirs=utils.get_dirs_with_str(p,'s')
         for path in ses_dirs:
+            if os.path.exists(out_path) and (path in existing_paths):
+                print(f'{path} already processed. Conitnuing...')
+                # continue
             mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path,'kinect'),config)
             mean_CPR_depth_GT,CPR_rate_GT=detect_CPR_rate_depth_GT(path)
+            mean_CPR_depths.append(mean_CPR_depth)
+            CPR_rates.append(CPR_rate)
+            mean_CPR_depths_GT.append(mean_CPR_depth_GT)
+            CPR_rates_GT.append(CPR_rate_GT)
             with open(out_path, 'a') as file:
                 file.write(f"{path},{mean_CPR_depth:.2f},{CPR_rate:.2f},{mean_CPR_depth_GT:.2f},{CPR_rate_GT:.2f}")
                 file.write("\n")
+    #calculate error
+    mean_CPR_depths=np.array(mean_CPR_depths)
+    CPR_rates=np.array(CPR_rates)
+    mean_CPR_depths_GT=np.array(mean_CPR_depths_GT)
+    CPR_rates_GT=np.array(CPR_rates_GT)
+
+    nan_indices_GT = np.isnan(mean_CPR_depths_GT)
+    nan_indices = np.isnan(mean_CPR_depths)
+    logical_and = np.logical_and(~nan_indices_GT, ~nan_indices)
+    mean_error = np.mean((mean_CPR_depths[logical_and] - mean_CPR_depths_GT[logical_and])**2)**0.5
+    print(f"Mean depth error is {mean_error:.2f} mm")
+
+    nan_indices_GT = np.isnan(CPR_rates_GT)
+    nan_indices = np.isnan(CPR_rates)
+    logical_and = np.logical_and(~nan_indices_GT, ~nan_indices)
+    mean_error = np.mean((CPR_rates[logical_and] - CPR_rates_GT[logical_and])**2)**0.5
+    print(f"Mean rate error is {mean_error:.2f}")
+
+
 
     # method=config.evaluate.method
     # plot_3d=True

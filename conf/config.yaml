@@ -1,6 +1,6 @@
 data_root: 'D:\CPR_extracted'
 evaluate:
-  method: 'mediapipe'
+  method: 'mediapipe'  #tracking or mediapipe or mmpose_finetuned_RHD2D
   result_path: 'D:\CPR_extracted\results'
 smartwatch:
   #Android sensor codes

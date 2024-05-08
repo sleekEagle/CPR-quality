@@ -11,6 +11,7 @@ logging.basicConfig(filename='ext_canon.log', level=logging.INFO)
 # Add the following line at $PLACEHOLDER$
 logging.info('This is extract canon code')
 import numpy as np
+import json
 
 # get_ts_google(r'D:\CPR_data_raw\P0\s1\canon\MVI_1007\1955.png')
 
@@ -257,8 +258,8 @@ def get_ts_canon_dataset_main(path):
 
 def select_inrange_canon_data():
     kinect_path=r'D:\CPR_extracted'
-    canon_path=r'D:\canon_images_original'
-    canon_out_path=r'D:\CPR_dataset\canon_images_selected'
+    canon_path=r'D:\CPR_dataset\canon_images'
+    canon_out_path=r'D:\CPR_dataset\canon_images_selected2'
 
     kinect_part_dirs=utils.get_dirs_with_str(kinect_path, 'P')
     for kp in kinect_part_dirs:
@@ -271,10 +272,10 @@ def select_inrange_canon_data():
                 continue
             ts_list=np.array(utils.read_allnum_lines(ts_path))
 
-            out_dir=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd),'color')
-            if os.path.exists(out_dir):
-                print(f'{sd} is already processed. Continuing...')
-                continue
+            out_dir=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd))
+            # if os.path.exists(out_dir):
+            #     print(f'{sd} is already processed. Continuing...')
+            #     continue
 
             cdir_=os.path.join(canon_path, os.path.basename(kp))
             if not os.path.exists(cdir_):
@@ -309,11 +310,47 @@ def select_inrange_canon_data():
             imgs = utils.list_files(os.path.join(os.path.dirname(best_dir),img_dir), 'jpg')
             imgs.sort()
             selected_imgs=[imgs[i] for i in select_cond]
+            # selected_depth_anything_imgs=[os.path.join(os.path.dirname(best_dir),'depth_anything_depth',img.split('.')[0]+'.png') for img in selected_imgs]
+            # selected_handmask_imgs=[os.path.join(os.path.dirname(best_dir),'hand_mask',img.split('.')[0]+'.png') for img in selected_imgs]
 
-            if not os.path.exists(out_dir):
-                os.makedirs(out_dir)
-            for img in selected_imgs:
-                shutil.copy(os.path.join(os.path.dirname(best_dir),img_dir,img), os.path.join(out_dir,img))
+            print(f'canon source dir: {best_dir}')
+            out_color_dir=os.path.join(out_dir,'color')
+            out_depth_anything_depth_dir=os.path.join(out_dir,'depth_anything_depth')
+            out_hand_mask_dir=os.path.join(out_dir,'hand_mask')
+            out_kypt_dir=os.path.join(out_dir,'hand_keypts')
+            if not os.path.exists(out_color_dir): os.makedirs(out_color_dir)
+            if not os.path.exists(out_depth_anything_depth_dir): os.makedirs(out_depth_anything_depth_dir)
+            if not os.path.exists(out_hand_mask_dir): os.makedirs(out_hand_mask_dir)
+            if not os.path.exists(out_kypt_dir): os.makedirs(out_kypt_dir)
+            
+            for i in range(len(selected_imgs)):
+                try:
+                    shutil.copy(os.path.join(os.path.dirname(best_dir),img_dir,selected_imgs[i]), os.path.join(out_dir,'color',selected_imgs[i]))
+                except:
+                    print(f'Error in copying images {selected_imgs[i]}')
+                try:
+                    shutil.copy(os.path.join(os.path.dirname(best_dir),'depth_anything_depth',selected_imgs[i].split('.')[0]+'.png'), os.path.join(out_depth_anything_depth_dir,selected_imgs[i].split('.')[0]+'.png'))
+                except:
+                    print(f'Error in copying depth anything {selected_imgs[i]}')
+                try:
+                    shutil.copy(os.path.join(os.path.dirname(best_dir),'hand_mask',selected_imgs[i].split('.')[0]+'.png'), os.path.join(out_hand_mask_dir,selected_imgs[i].split('.')[0]+'.png'))
+                except:
+                    print(f'Error in copying hand mask {selected_imgs[i]}')
+            
+            img_keys=[k.split('.')[0] for k in imgs]
+            with open(os.path.join(os.path.dirname(best_dir),'wrist_keypts','hand_keypts_mediapipe.json'), 'r') as file:
+                data = json.load(file)
+                k=[k for k in data.keys() if k in img_keys]
+                data={k_:data[k_] for k_ in k}
+            with open(os.path.join(out_kypt_dir,'hand_keypts_mediapipe.json'), 'w') as file:
+                json.dump(data, file)
+
+            with open(os.path.join(os.path.dirname(best_dir),'hand_bbs.json'), 'r') as file:
+                data = json.load(file)
+                k=[k for k in data.keys() if k in img_keys]
+                data={k_:data[k_] for k_ in k}
+            with open(os.path.join(out_dir,'hand_bbs.json'), 'w') as file:
+                json.dump(data, file)
             #save ts
             out_file=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd),'timestamps.txt')
             with open(out_file, 'w') as f:
@@ -321,13 +358,47 @@ def select_inrange_canon_data():
                     f.write(selected_imgs[i]+','+str(selected_ts[i])+'\n')
 
 
+def copy_canon_data():
+    source_path=r'D:\CPR_dataset\canon_images'
+    dest_path=r'D:\CPR_dataset\canon_images_selected'
+    part_dirs=utils.get_dirs_with_str(source_path, 'P')
+    for pd in part_dirs:
+        s_dirs=utils.get_dirs_with_str(os.path.join(source_path,pd), 's')
+        for sd in s_dirs:
+            print(f'processing {sd}...')
+            source_color_path=os.path.join(source_path,os.path.basename(pd),os.path.basename(sd))
+            img_dir=[s for s in utils.list_subdirectories(source_color_path) if (s.startswith('img') or s.startswith('MVI'))][0]
+            source_color_path=os.path.join(source_color_path,img_dir)
+            imgs = utils.list_files(os.path.join(os.path.dirname(source_color_path),img_dir), 'jpg')
+
+
+
+
+
+def copy_canon_ts():
+    source_path=r'D:\canon_images_original'
+    dest_path=r'D:\CPR_dataset\canon_images'
+    part_dirs=utils.get_dirs_with_str(source_path, 'P')
+    for pd in part_dirs:
+        s_dirs=utils.get_dirs_with_str(os.path.join(source_path,pd), 's')
+        for sd in s_dirs:
+            print(f'processing {sd}...')
+            dest_ts_path=os.path.join(dest_path,os.path.basename(pd),os.path.basename(sd),'timestamps.txt')
+            if os.path.exists(dest_ts_path):
+                print(f'{sd} is already processed. Continuing...')
+                continue
+            source_ts_path=os.path.join(source_path,os.path.basename(pd),os.path.basename(sd),'timestamps.txt')
+            shutil.copy(source_ts_path,dest_ts_path)
+
 
 
 if __name__ == "__main__":
     # move_masks_into_data_dir()
     # get_ts_from_images(r'D:\hand_depth_dataset\canon')
     # get_ts_canon_dataset_main(r'D:\canon_images_original')
+    # select_inrange_canon_data()
     select_inrange_canon_data()
+    # copy_canon_ts()
 
 
 

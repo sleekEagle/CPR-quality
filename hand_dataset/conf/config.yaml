@@ -24,7 +24,7 @@ opt_scheduler_step: 100
 infer:
   infer_model: 'D:\models\CPR_quality\cpr_blur_model_256.pth'
   eval: False
-  dataset_path: 'D:\canon_images'
+  dataset_path: 'D:\CPR_dataset\canon_images_selected'
   save_path: 'D:\canon_blur_pred'
 
 

@@ -52,7 +52,8 @@ def main(conf):
         ses_dirs=utils.get_dirs_with_str(p,'s',i=0,j=1)
         for s in ses_dirs:
             print(f'Processing {s}...')
-            img_dir=[s for s in utils.list_subdirectories(s) if (s.startswith('img') or s.startswith('MVI'))][0]
+            # img_dir=[s for s in utils.list_subdirectories(s) if (s.startswith('img') or s.startswith('MVI'))][0]
+            img_dir=os.path.join(s,'color')
             imgs=utils.list_files(os.path.join(s,img_dir),'jpg')
             bb_path=os.path.join(s,'hand_bbs.json')
             if not os.path.exists(bb_path):

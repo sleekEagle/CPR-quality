@@ -498,14 +498,14 @@ def find_peaks_and_valleys(signal, distance=10,height=0.2,prominence=(None, None
 Detect peaks and valleys of depth sensor values 
 This does filtering, etc. specific to the depth sensor data
 '''
-def detect_peaks_and_valleys_depth_sensor(depth_vals,depth_ts,show=False):
+def detect_peaks_and_valleys_depth_sensor(depth_vals,depth_ts,mul=3000,show=False):
     t=(depth_ts[-1]-depth_ts[0])/60
     #equally spaced ts
     ts_new=np.linspace(0,depth_ts[-1]-depth_ts[0],len(depth_ts))
     depth_ts=np.array(depth_ts)-depth_ts[0]
     depth_vals_norm_=moving_normalize(depth_vals, 100)
     num_zero_crossings = len(np.where(np.diff(np.sign(depth_vals_norm_)))[0])/t
-    dist=int(1/num_zero_crossings*3000)
+    dist=int(1/num_zero_crossings*mul)
     depth_vals_norm=moving_normalize(depth_vals, 100)
     GT_peaks,GT_valleys,idx=find_peaks_and_valleys(depth_vals_norm,distance=dist,height=0.2,plot=show)
     return GT_peaks,GT_valleys
