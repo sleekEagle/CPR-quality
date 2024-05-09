@@ -150,16 +150,30 @@ def main():
                 mask=mask.astype(np.uint8)
                 cv2.imwrite(hand_mask_img_path, mask)            
 
+def check_canon():
+    root=r'D:\CPR_dataset\canon_images_selected2'
+    part_dirs=utils.get_dirs_with_str(root,'P')
+    for p in part_dirs:
+        sub_dirs=utils.get_dirs_with_str(p,'s')
+        for s in sub_dirs:
+            maks_dir=os.path.join(root,p,s,'hand_mask')
+            nfiles=len(utils.list_files(maks_dir,'png'))
+            if nfiles==0:
+                print(f'{maks_dir} has no files')
+
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=r'/p/blurdepth/models/sam_vit_h_4b8939.pth',help="Path to the model checkpoint file")
     parser.add_argument("--data", default=r'/p/blurdepth/data/canon_images/', help="Path to the data directory")
+
     args = parser.parse_args()
 
-    # cannon(args.data, args.model)
-    main()
+    cannon(args.data, args.model)
+    # check_canon()
+    # main()
 
 
 
