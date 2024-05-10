@@ -6,9 +6,13 @@ import numpy as np
 import sys
 import argparse
 
-def show_video(dir_path,show_kypts,bb,model):
-    keypt_file=os.path.join(dir_path,'kinect','wrist_keypts',f'hand_keypts_{model}.json')
-    img_dir=os.path.join(dir_path,'kinect','color')
+def show_video(dir_path,show_kypts,bb,model,camera='canon'):
+    if camera=='canon':
+        keypt_file=os.path.join(dir_path,'hand_keypts',f'hand_keypts_{model}.json')
+        img_dir=os.path.join(dir_path,'color')
+    elif camera=='kinect':
+        keypt_file=os.path.join(dir_path,'kinect','wrist_keypts',f'hand_keypts_{model}.json')
+        img_dir=os.path.join(dir_path,'kinect','color')
     imgs=utils.get_files_with_str(img_dir,'.jpg')
     if show_kypts:
         with open(keypt_file, 'r') as json_file:
@@ -48,12 +52,12 @@ def show_video(dir_path,show_kypts,bb,model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root_dir", type=str, default="D:\\CPR_extracted\\", help="Path to data directory")
+    parser.add_argument("--root_dir", type=str, default=r"D:\CPR_dataset\canon_images_selected2", help="Path to data directory")
     parser.add_argument("-p", type=str, default="P0", help="Path to participant directory")
     parser.add_argument("-s", type=str, default="s_2", help="Path to session directory")
     parser.add_argument("--kypts", type=bool, default=True, help="Should kypts be displayed")
-    parser.add_argument("--bb", type=bool, default=True, help="Should bounding bx be displayed")
-    parser.add_argument("--kypt_model", type=str, default="mmpose_finetuned_RHD2D", help="model name used for keypoint detection. mmpose_finetuned_RHD2D, mediapipe, tracking")
+    parser.add_argument("--bb", type=bool, default=False, help="Should bounding bx be displayed")
+    parser.add_argument("--kypt_model", type=str, default="mediapipe", help="model name used for keypoint detection. mmpose_finetuned_RHD2D, mediapipe, tracking")
 
     args = parser.parse_args()
 

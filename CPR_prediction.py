@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import hydra
 import cv2
+import pandas as pd
 # from sklearn.linear_model import RANSACRegressor
 # import pyransac3d as pyrsc
 # from scipy.interpolate import interp1d
@@ -167,12 +168,27 @@ def getXYZpos(XYZ_array,XYZ_idx_list,kinect_inter_depth_list,kinect_ts_list,plot
 '''
 get xy and timestamps for a given session
 '''
-def get_xy_times(path,method):
+
+def read_canon_ts(path):
+    with open(path, 'r') as file:
+        lines = file.readlines()
+    ts=[float(l.strip().split(',')[1]) for l in lines]
+    return ts
+
+def get_xy_times(path,method,camera='canon'):
     #read ts file
-    if not os.path.exists(os.path.join(path,'kinect_ts_interp.txt')):
-        return -1
-    ts_vals=utils.read_allnum_lines(os.path.join(path,'kinect_ts_interp.txt'))
-    xy_kypt_path=os.path.join(path,'wrist_keypts',f'hand_keypts_{method}.json')
+    if camera=='kinect':
+        ts_path=os.path.join(path,'kinect_ts_interp.txt')
+        if not os.path.exists(ts_path):
+            return -1
+        ts_vals=utils.read_allnum_lines(ts_path)
+    elif camera=='canon':
+        ts_path=os.path.join(path,'timestamps.txt')
+        if not os.path.exists(ts_path):
+            return -1
+        ts_vals=read_canon_ts(ts_path)
+
+    xy_kypt_path=os.path.join(path,'hand_keypts',f'hand_keypts_{method}.json')
     img_names=[os.path.basename(img).split('.')[0] for img in utils.get_files_with_str(os.path.join(path,'color'),'.jpg')]
     img_names.sort()
     valid_img_names=[]
@@ -208,7 +224,7 @@ def detect_CPR_rate_depth(path,config):
     if xy_out==-1:
         return -1,-1
     signal=np.array([k[1] for k in xy_out['kypts']])
-    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],mul=3500,show=False)
+    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],mul=3500,show=True)
 
     #plot
     # t=np.array(xy_out['valid_ts'])
@@ -267,7 +283,8 @@ def detect_CPR_rate_depth_GT(path):
     depth_vals=np.array(utils.read_allnum_lines(depth_path))
     ts_vals=np.array(utils.read_allnum_lines(ts_path))
     peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(depth_vals,ts_vals,show=False)
-    CPR_rate=(len(peaks)+len(valleys))/2/(ts_vals[-1]-ts_vals[0])*60
+    t=(ts_vals[-1]-ts_vals[0])/60
+    CPR_rate=(len(peaks)+len(valleys))/2/t
     print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
     peak_depths=depth_vals[peaks]
     valley_depths=depth_vals[valleys]
@@ -278,60 +295,84 @@ def detect_CPR_rate_depth_GT(path):
     mean_CPR_depth=np.mean(CPR_depth)
     print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
 
-    return mean_CPR_depth,CPR_rate
+    return mean_CPR_depth,CPR_rate,t
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
-    out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth.txt')
-    existing_paths=[]
-    if os.path.exists(out_path):
+    get_results=False
+    if not get_results:
+        out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_BlurDepth.txt')
+        existing_paths=[]
+        if os.path.exists(out_path):
+            with open(out_path, 'r') as file:
+                lines = file.readlines()
+                if len(lines)>1:
+                    lines=lines[1:]
+                    existing_paths=[l.strip().split(',')[0] for l in lines]
+        else:
+            os.makedirs(config.evaluate.result_path, exist_ok=True)
+            with open(out_path, 'a') as file:
+                file.write("path,mean_CPR_depth,CPR_rate,mean_CPR_depth_GT,CPR_rate_GT,time")
+                file.write("\n")
+        part_dirs=utils.get_dirs_with_str(config.data_root,'P')
+        mean_CPR_depths,CPR_rates,mean_CPR_depths_GT,CPR_rates_GT,times=[],[],[],[],[]
+        for p in part_dirs:
+            print(f'Processing {p}....')
+            ses_dirs=utils.get_dirs_with_str(p,'s')
+            for path in ses_dirs:
+                if os.path.exists(out_path) and (path in existing_paths):
+                    print(f'{path} already processed. Conitnuing...')
+                    # continue
+                mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path),config)
+                mean_CPR_depth_GT,CPR_rate_GT,t=detect_CPR_rate_depth_GT(path)
+                mean_CPR_depths.append(mean_CPR_depth)
+                CPR_rates.append(CPR_rate)
+                mean_CPR_depths_GT.append(mean_CPR_depth_GT)
+                CPR_rates_GT.append(CPR_rate_GT)
+                times.append(t)
+                with open(out_path, 'a') as file:
+                    file.write(f"{path},{mean_CPR_depth:.2f},{CPR_rate:.2f},{mean_CPR_depth_GT:.2f},{CPR_rate_GT:.2f},{t:.2f}")
+                    file.write("\n")
+    else:
+        out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth.txt')
+        part,session,mean_CPR_depths,CPR_rates,mean_CPR_depths_GT,CPR_rates_GT,times=[],[],[],[],[],[],[]
         with open(out_path, 'r') as file:
             lines = file.readlines()
             if len(lines)>1:
                 lines=lines[1:]
-                existing_paths=[l.strip().split(',')[0] for l in lines]
-    else:
-        with open(out_path, 'a') as file:
-            file.write("path,mean_CPR_depth,CPR_rate,mean_CPR_depth_GT,CPR_rate_GT")
-            file.write("\n")
-    part_dirs=utils.get_dirs_with_str(config.data_root,'P')
-    mean_CPR_depths,CPR_rates,mean_CPR_depths_GT,CPR_rates_GT=[],[],[],[]
-    for p in part_dirs:
-        print(f'Processing {p}....')
-        ses_dirs=utils.get_dirs_with_str(p,'s')
-        for path in ses_dirs:
-            if os.path.exists(out_path) and (path in existing_paths):
-                print(f'{path} already processed. Conitnuing...')
-                # continue
-            mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path,'kinect'),config)
-            mean_CPR_depth_GT,CPR_rate_GT=detect_CPR_rate_depth_GT(path)
-            mean_CPR_depths.append(mean_CPR_depth)
-            CPR_rates.append(CPR_rate)
-            mean_CPR_depths_GT.append(mean_CPR_depth_GT)
-            CPR_rates_GT.append(CPR_rate_GT)
-            with open(out_path, 'a') as file:
-                file.write(f"{path},{mean_CPR_depth:.2f},{CPR_rate:.2f},{mean_CPR_depth_GT:.2f},{CPR_rate_GT:.2f}")
-                file.write("\n")
-    #calculate error
-    mean_CPR_depths=np.array(mean_CPR_depths)
-    CPR_rates=np.array(CPR_rates)
-    mean_CPR_depths_GT=np.array(mean_CPR_depths_GT)
-    CPR_rates_GT=np.array(CPR_rates_GT)
+                for l in lines:
+                    parts=l.strip().split(',')
+                    p=parts[0].split('\\')[-2]
+                    s=parts[0].split('\\')[-1]
+                    part.append(p)
+                    session.append(s)
+                    mean_CPR_depths.append(float(parts[1]))
+                    CPR_rates.append(float(parts[2]))
+                    mean_CPR_depths_GT.append(float(parts[3]))
+                    CPR_rates_GT.append(float(parts[4]))
+                    times.append(float(parts[5]))
+        df = pd.DataFrame({
+            'Participant': part,
+            'Session': session,
+            'Mean_CPR_Depth': mean_CPR_depths,
+            'CPR_Rate': CPR_rates,
+            'Mean_CPR_Depth_GT': mean_CPR_depths_GT,
+            'CPR_Rate_GT': CPR_rates_GT,
+            'Time': times
+        })
+        df['Rate_error']=np.abs(df['CPR_Rate']-df['CPR_Rate_GT'])
+        df['Depth_error']=np.abs(df['Mean_CPR_Depth']-df['Mean_CPR_Depth_GT'])
+        # Select rows from the dataframe with CPR times greater than 10 seconds
+        filtered_df = df[df['Time'] > 0.16]
+        filtered_df.dropna(inplace=True)
 
-    nan_indices_GT = np.isnan(mean_CPR_depths_GT)
-    nan_indices = np.isnan(mean_CPR_depths)
-    logical_and = np.logical_and(~nan_indices_GT, ~nan_indices)
-    mean_error = np.mean((mean_CPR_depths[logical_and] - mean_CPR_depths_GT[logical_and])**2)**0.5
-    print(f"Mean depth error is {mean_error:.2f} mm")
-
-    nan_indices_GT = np.isnan(CPR_rates_GT)
-    nan_indices = np.isnan(CPR_rates)
-    logical_and = np.logical_and(~nan_indices_GT, ~nan_indices)
-    mean_error = np.mean((CPR_rates[logical_and] - CPR_rates_GT[logical_and])**2)**0.5
-    print(f"Mean rate error is {mean_error:.2f}")
-
-
-
+        grouped_mean = filtered_df.groupby(['Participant','Session']).mean()
+        grouped_mean.to_csv(os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth.csv'), index=True)
+        
+        filtered_df.drop(columns=['Session'], inplace=True)
+        grouped_mean2 = filtered_df.groupby(['Participant']).mean()
+        grouped_mean2.to_csv(os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_kinectDepth_Pmeans.csv'), index=True)
+        
     # method=config.evaluate.method
     # plot_3d=True
     # plot_depth=True
@@ -395,70 +436,28 @@ def main(config):
 if __name__ == "__main__":
     main()
 
-#detect planes from data
-# plane1 = pyrsc.Plane()
-# best_eq, best_inliers = plane1.fit(XYZ_array, 0.01)
-# A, B, C, D=best_eq
-# x=np.linspace(min(XYZ_array[:,0]),max(XYZ_array[:,0]),100)
-# y=np.linspace(min(XYZ_array[:,1]),max(XYZ_array[:,1]),100)
-# x, y = np.meshgrid(x, y)
-# z = (-D - A * x - B * y) / C
+# import utils
+# import os
+# import shutil
+
+# path=r'D:\CPR_extracted'
+# target_path=r'D:\CPR_dataset\canon_images_selected2'
+# partdirs=utils.get_dirs_with_str(path,'P')
+# for p in partdirs:
+#     sesdirs=utils.get_dirs_with_str(p,'s')
+#     for s in sesdirs:
+#         print(s)
+#         depht_ts_path=os.path.join(s,'depth_sensor_ts.txt')
+#         depth_path=os.path.join(s,'depth_sensor.txt')
+#         try:
+#             shutil.copy(depht_ts_path,os.path.join(target_path,os.path.basename(p),os.path.basename(s),'depth_sensor_ts.txt'))
+#             shutil.copy(depth_path,os.path.join(target_path,os.path.basename(p),os.path.basename(s),'depth_sensor.txt'))
+#         except:
+#             print(f'Error in {s}')
+#             continue
 
 
 
-# threshold=5
-# dists=np.abs(dist_from_plane(A, B, C, D, XYZ_array))
-# dists_valid=dists<threshold
-# XYZ_valid=XYZ_array[dists_valid]
-
-
-
-
-#project points onto the plane
-# proj_points_high=np.array([project_point_to_plane(val, best_eq) for val in high_vals])
-# proj_points_low=np.array([project_point_to_plane(val, best_eq) for val in low_vals])
-# depths=np.sum((high_vals-proj_points_low)**2,axis=1)**0.5
-
-# plt.plot(output['GT_depths'])
-# plt.plot(depths)
-# plt.show()
-
-
-
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# ax.set_xlim(min(XYZ_valid[:,0]), max(XYZ_valid[:,0]))
-# ax.set_ylim(min(XYZ_valid[:,1]), max(XYZ_valid[:,1]))
-# ax.scatter(XYZ_valid[:, 0], XYZ_valid[:, 1], XYZ_valid[:, 2])
-# ax.scatter(XYZ_valid[0, 0], XYZ_valid[0, 1], XYZ_valid[0, 2], s=100, c='red')
-# ax.set_xlabel('X Axis')
-# ax.set_ylabel('Y Axis')
-# ax.set_zlabel('Z Axis')
-# plt.title('3D points after outlier removal')
-# plt.show()
-
-
-
-'''
-plot outputs
-'''
-# plt.plot(output['GT_depths'])
-# plt.plot(output['depths'])
-# plt.title('depth estimation')
-# plt.ylabel('CPR compression depth in mm')
-# plt.show()
-
-# plt.plot(output['interpolated_norm'])
-# plt.plot(output['peaks'], output['interpolated_norm'][output['peaks']], "x")
-# plt.plot(output['valleys'], output['interpolated_norm'][output['valleys']], "o")
-# plt.title('peaks and valleys')
-# plt.show()
-
-# plt.plot(output['kinect_inter_depth_list'])
-# plt.title('GT depth interpolated to kinect timestamps')
-# plt.ylabel('CPR compression depth in mm')
-# plt.show()
 
 
 
