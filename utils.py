@@ -27,6 +27,7 @@ def get_XYZ_kinect(x,y,depth):
     return X,Y,Z
 
 def get_XYZ_canon(x,y,depth):
+    depth=depth
     X=(x-canon_k[0,2])*depth/canon_k[0,0]
     Y=(y-canon_k[1,2])*depth/canon_k[1,1]
     Z=depth
@@ -35,10 +36,12 @@ def get_XYZ_canon(x,y,depth):
 '''
 given x,y coordinates, get the depth value after taking mean
 '''
-def get_depth_val_from_xy(depth_path,x,y):
+def get_depth_val_from_xy(depth_path,x,y,resize=(1920,1080)):
     import cv2
     depth_img_path=os.path.join(depth_path)
     depth_img=cv2.imread(depth_img_path,cv2.IMREAD_UNCHANGED)
+    if resize!=depth_img.shape:
+        depth_img=cv2.resize(depth_img,resize)
     depth=np.mean(depth_img[int(y)-3:int(y)+3,int(x)-3:int(x)+3])
     return depth
 

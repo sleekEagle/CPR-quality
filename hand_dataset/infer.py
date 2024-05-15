@@ -62,8 +62,22 @@ def main(conf):
             with open(bb_path, 'r') as f:
                 data = json.load(f)
 
+            out_dir=os.path.join(conf.infer.save_path,os.path.basename(p),os.path.basename(s),'blur_depth')
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
             for img in imgs:
-                bbs=data[img.split('.')[0]]
+                out_path=os.path.join(out_dir,img.split('.')[0]+'.png')
+                if os.path.exists(out_path):
+                    print(f'{out_path} already exists. Continuing...')
+                    # continue
+                if data.keys().__contains__(img.split('.')[0]):
+                    bbs=data[img.split('.')[0]]
+                else:
+                    print(f'{img} does not have a bounding box. Continuing...')
+                    continue
+                if bbs=='':
+                    print(f'{img} does not have a bounding box. Continuing...')
+                    continue
                 bbs=[int(item) for item in bbs.split(',')]
                 color_img=cv2.imread(os.path.join(os.path.join(s,img_dir,img)))
                 center=int(0.5*(bbs[0]+bbs[2])),int(0.5*(bbs[1]+bbs[3]))
@@ -79,10 +93,7 @@ def main(conf):
 
                 depth_img=np.zeros((color_img.shape[0],color_img.shape[1])).astype(np.uint16)
                 depth_img[y_crop[0]:y_crop[1],x_crop[0]:x_crop[1]]=(real_depth*1000).astype(np.uint16)
-                out_dir=os.path.join(conf.infer.save_path,os.path.basename(p),os.path.basename(s))
-                if not os.path.exists(out_dir):
-                    os.makedirs(out_dir)
-                out_path=os.path.join(out_dir,img.split('.')[0]+'.png')
+
                 cv2.imwrite(out_path,depth_img)            
 
                 # crop_size=conf.crop_size

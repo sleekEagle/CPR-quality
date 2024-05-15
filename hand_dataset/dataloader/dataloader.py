@@ -93,7 +93,9 @@ class HandDepthDataset(Dataset):
             if self.conf.data_out !='stats' and self.conf.normalize_blur:
                 blur=blur/self.conf.max_blur
         if self.conf.data_out !='stats' and self.conf.normalize_depth:
+            # print(f'dataloader:{depth[depth>0].mean()}')
             depth=depth/self.conf.max_depth
+            # print(f'dataloader post norm:{depth[depth>0].mean()}')
         return img,depth,blur,seg
     
 

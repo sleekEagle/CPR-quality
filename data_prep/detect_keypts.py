@@ -305,12 +305,12 @@ def detec_keypoints_dir_mmpose(data_path,model_name):
 # cv2.destroyAllWindows()
 
 
-
+#for mmpose and openCV tracking 
 def detect_kypts_mmpose(model_name,root_dir):
     from mmdet.apis import init_detector, inference_detector,DetInferencer
     from mmpose.apis import MMPoseInferencer
-    import numpy as np
     from mmcv.image import imread
+    import numpy as np
     from PIL import Image
     import cv2
 
@@ -558,12 +558,12 @@ def get_personBB(root_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Detect Keypoints')
-    parser.add_argument('--data_path', type=str, default=r'D:\canon_images', help='Path to data directory')
+    parser.add_argument('--data_path', type=str, default=r'D:\CPR_extracted', help='Path to data directory')
     parser.add_argument('--model_name', type=str, default='tracking', help='model used to detect keypoints. finetuned_RHD2D: mmpose model trained on RHD2D finetuned on our dataset, tracking: use opencv tracking')
     args=parser.parse_args()
     
-    # detect_kypts_mmpose(args.model_name,args.data_path)
-    detect_kypts_mp_cannon(args.data_path)
+    detect_kypts_mmpose(args.model_name,args.data_path)
+    # detect_kypts_mp_cannon(args.data_path)
     # detect_kypts_mp(args.data_path)
     # detec_keypoints_dir_mmpose(r'C:\Users\lahir\Downloads\cpr_data\test','RHD2D')
 

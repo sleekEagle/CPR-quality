@@ -266,6 +266,8 @@ def select_inrange_canon_data():
         kinect_s_dirs=utils.get_dirs_with_str(kp, 's')
         for sd in kinect_s_dirs:
             print(f'processing {sd}...')
+            if sd!='D:\\CPR_extracted\\P23\\s_10':
+                continue
             ts_path=os.path.join(sd, 'kinect','kinect_ts.txt')
             if not os.path.exists(ts_path):
                 print(f'{ts_path} does not exist. Continuing...')
@@ -273,9 +275,9 @@ def select_inrange_canon_data():
             ts_list=np.array(utils.read_allnum_lines(ts_path))
 
             out_dir=os.path.join(canon_out_path,os.path.basename(kp),os.path.basename(sd))
-            # if os.path.exists(out_dir):
-            #     print(f'{sd} is already processed. Continuing...')
-            #     continue
+            if os.path.exists(out_dir):
+                print(f'{sd} is already processed. Continuing...')
+                # continue
 
             cdir_=os.path.join(canon_path, os.path.basename(kp))
             if not os.path.exists(cdir_):
@@ -371,8 +373,15 @@ def copy_canon_data():
             source_color_path=os.path.join(source_color_path,img_dir)
             imgs = utils.list_files(os.path.join(os.path.dirname(source_color_path),img_dir), 'jpg')
 
-
-
+def check_canon():
+    root=r'D:\CPR_dataset\canon_images'
+    part_dirs=utils.get_dirs_with_str(root,'P')
+    for p in part_dirs:
+        sub_dirs=utils.get_dirs_with_str(p,'s')
+        for s in sub_dirs:
+            print(s)
+            img_dirs=[dir for dir in utils.list_subdirectories(s) if (dir.startswith('img') or dir.startswith('MVI'))]
+            print(img_dirs)
 
 
 def copy_canon_ts():
@@ -395,10 +404,9 @@ def copy_canon_ts():
 if __name__ == "__main__":
     # move_masks_into_data_dir()
     # get_ts_from_images(r'D:\hand_depth_dataset\canon')
-    # get_ts_canon_dataset_main(r'D:\canon_images_original')
-    # select_inrange_canon_data()
+    # get_ts_canon_dataset_main(r'D:\CPR_dataset\canon_images')
     select_inrange_canon_data()
-    # copy_canon_ts()
+    # check_canon()
 
 
 

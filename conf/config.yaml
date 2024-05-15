@@ -1,7 +1,7 @@
-data_root: 'D:\CPR_extracted'
+data_root: 'D:\CPR_dataset\canon_images_selected2'
 evaluate:
   method: 'mediapipe'  #tracking or mediapipe or mmpose_finetuned_RHD2D
-  result_path: 'D:\CPR_extracted\results'
+  result_path: 'D:\CPR_dataset\canon_images_selected2\results'
 smartwatch:
   #Android sensor codes
   TYPE_ACCELEROMETER: 1

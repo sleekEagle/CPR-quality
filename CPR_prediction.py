@@ -172,7 +172,9 @@ get xy and timestamps for a given session
 def read_canon_ts(path):
     with open(path, 'r') as file:
         lines = file.readlines()
-    ts=[float(l.strip().split(',')[1]) for l in lines]
+    ts={}
+    for l in lines:
+        ts[l.strip().split(',')[0].split('.')[0]]=float(l.strip().split(',')[1])
     return ts
 
 def get_xy_times(path,method,camera='canon'):
@@ -191,12 +193,18 @@ def get_xy_times(path,method,camera='canon'):
     xy_kypt_path=os.path.join(path,'hand_keypts',f'hand_keypts_{method}.json')
     img_names=[os.path.basename(img).split('.')[0] for img in utils.get_files_with_str(os.path.join(path,'color'),'.jpg')]
     img_names.sort()
+    
+    ts=[]
+    for img in img_names:
+        ts.append(ts_vals[img.split('.')[0]])
+    ts_vals=ts
+
     valid_img_names=[]
     kypts=[]
     valid_ts=[]
     with open(xy_kypt_path, 'r') as file:
         xy_kypts = json.load(file)
-        for k in xy_kypts.keys():
+        for k in img_names:
             if not (k in xy_kypts.keys()):
                 continue
             if len(xy_kypts[k].keys())==0:
@@ -212,9 +220,10 @@ def get_xy_times(path,method,camera='canon'):
     output['valid_img_names']=valid_img_names
     output['kypts']=kypts
     output['valid_ts']=valid_ts
+
     return output
 
-def detect_CPR_rate_depth(path,config):
+def detect_CPR_rate_depth(path,config,depth_dir='depth',camera='canon'):
     #detect peaks and valleys of the wrist movement
     try:
         xy_out=get_xy_times(path,config.evaluate.method)
@@ -224,7 +233,9 @@ def detect_CPR_rate_depth(path,config):
     if xy_out==-1:
         return -1,-1
     signal=np.array([k[1] for k in xy_out['kypts']])
-    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],mul=3500,show=True)
+    if len(signal)==0:
+        return -1,-1
+    peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(signal,xy_out['valid_ts'],mul=3500,show=False)
 
     #plot
     # t=np.array(xy_out['valid_ts'])
@@ -244,7 +255,7 @@ def detect_CPR_rate_depth(path,config):
     p=(len(peaks)+len(valleys))/2
     t=(xy_out['valid_ts'][-1]-xy_out['valid_ts'][0])/60
     CPR_rate=p/t
-    print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
+    # print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
 
     peak_times=np.array(xy_out['valid_ts'])[peaks]
     valley_times=np.array(xy_out['valid_ts'])[valleys]
@@ -253,12 +264,17 @@ def detect_CPR_rate_depth(path,config):
     peak_img_names=[xy_out['valid_img_names'][i] for i in peaks]
     valley_img_names=[xy_out['valid_img_names'][i] for i in valleys]
 
-    peak_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',peak_img_names[i]+'.png'),xy_vals_peaks[i][0],xy_vals_peaks[i][1]) for i in range(len(peak_img_names))])
-    valley_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,'depth',valley_img_names[i]+'.png'),xy_vals_valleys[i][0],xy_vals_valleys[i][1]) for i in range(len(valley_img_names))])
+    peak_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,depth_dir,peak_img_names[i]+'.png'),xy_vals_peaks[i][0],xy_vals_peaks[i][1]) for i in range(len(peak_img_names))])
+    valley_depths=np.array([utils.get_depth_val_from_xy(os.path.join(path,depth_dir,valley_img_names[i]+'.png'),xy_vals_valleys[i][0],xy_vals_valleys[i][1]) for i in range(len(valley_img_names))])
 
     #get XYZ points
-    XYZ_peaks=[utils.get_XYZ_kinect(xy_vals_peaks[i][0],xy_vals_peaks[i][1],peak_depths[i]) for i in range(len(peak_img_names))]
-    XYZ_valleys=[utils.get_XYZ_kinect(xy_vals_valleys[i][0],xy_vals_valleys[i][1],valley_depths[i]) for i in range(len(valley_img_names))]
+    if camera=='kinect':
+        XYZ_peaks=[utils.get_XYZ_kinect(xy_vals_peaks[i][0],xy_vals_peaks[i][1],peak_depths[i]) for i in range(len(peak_img_names))]
+        XYZ_valleys=[utils.get_XYZ_kinect(xy_vals_valleys[i][0],xy_vals_valleys[i][1],valley_depths[i]) for i in range(len(valley_img_names))]
+    elif camera=='canon':
+        XYZ_peaks=[utils.get_XYZ_canon(xy_vals_peaks[i][0],xy_vals_peaks[i][1],peak_depths[i]) for i in range(len(peak_img_names))]
+        XYZ_valleys=[utils.get_XYZ_canon(xy_vals_valleys[i][0],xy_vals_valleys[i][1],valley_depths[i]) for i in range(len(valley_img_names))]
+
     XYZ_peaks=np.array(XYZ_peaks)
     XYZ_valleys=np.array(XYZ_valleys)
     l=min(len(XYZ_peaks),len(XYZ_valleys))
@@ -271,7 +287,7 @@ def detect_CPR_rate_depth(path,config):
     outliers = np.abs(CPR_depth - median) / mad > 4
     CPR_depth=CPR_depth[~outliers]
     mean_CPR_depth=np.mean(CPR_depth)
-    print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
+    # print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
 
     return mean_CPR_depth,CPR_rate
 
@@ -285,7 +301,7 @@ def detect_CPR_rate_depth_GT(path):
     peaks,valleys=utils.detect_peaks_and_valleys_depth_sensor(depth_vals,ts_vals,show=False)
     t=(ts_vals[-1]-ts_vals[0])/60
     CPR_rate=(len(peaks)+len(valleys))/2/t
-    print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
+    # print(f"CPR rate is {CPR_rate:.2f} compressions per minute")
     peak_depths=depth_vals[peaks]
     valley_depths=depth_vals[valleys]
     l=min(len(peak_depths),len(valley_depths))
@@ -293,7 +309,7 @@ def detect_CPR_rate_depth_GT(path):
     valley_depths=valley_depths[:l]
     CPR_depth=np.abs(peak_depths-valley_depths)
     mean_CPR_depth=np.mean(CPR_depth)
-    print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
+    # print(f"Mean CPR depth is {mean_CPR_depth:.2f} mm")
 
     return mean_CPR_depth,CPR_rate,t
 
@@ -301,7 +317,7 @@ def detect_CPR_rate_depth_GT(path):
 def main(config):
     get_results=False
     if not get_results:
-        out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_BlurDepth.txt')
+        out_path=os.path.join(config.evaluate.result_path,f'performance_{config.evaluate.method}_Blur.txt')
         existing_paths=[]
         if os.path.exists(out_path):
             with open(out_path, 'r') as file:
@@ -320,16 +336,17 @@ def main(config):
             print(f'Processing {p}....')
             ses_dirs=utils.get_dirs_with_str(p,'s')
             for path in ses_dirs:
-                if os.path.exists(out_path) and (path in existing_paths):
-                    print(f'{path} already processed. Conitnuing...')
-                    # continue
-                mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path),config)
+                # if os.path.exists(out_path) and (path in existing_paths):
+                #     print(f'{path} already processed. Conitnuing...')
+                #     continue
+                mean_CPR_depth,CPR_rate=detect_CPR_rate_depth(os.path.join(path),config,depth_dir='blur_depth')
                 mean_CPR_depth_GT,CPR_rate_GT,t=detect_CPR_rate_depth_GT(path)
                 mean_CPR_depths.append(mean_CPR_depth)
                 CPR_rates.append(CPR_rate)
                 mean_CPR_depths_GT.append(mean_CPR_depth_GT)
                 CPR_rates_GT.append(CPR_rate_GT)
                 times.append(t)
+                print(f'depth error: {np.mean(mean_CPR_depth-mean_CPR_depth_GT)}  mm')
                 with open(out_path, 'a') as file:
                     file.write(f"{path},{mean_CPR_depth:.2f},{CPR_rate:.2f},{mean_CPR_depth_GT:.2f},{CPR_rate_GT:.2f},{t:.2f}")
                     file.write("\n")
