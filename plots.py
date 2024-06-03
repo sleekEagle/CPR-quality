@@ -84,12 +84,6 @@ lines9,=plt.plot(t[i:j],sw_data['mag_z'][i:j],c='#30E3DF',linestyle='-.',label='
 plt.savefig(r'C:\Users\lahir\Downloads\sw_data_zoomed_fat.png')
 
 
-
-    
-
-
-
-
 path=r'D:\CPR_data_raw\P0\s1\gopro\GH010243_HERO9 Black-ACCL.csv'
 gopro_data=utils.get_gopro_data(path)
 ts=gopro_data['time']
@@ -125,10 +119,11 @@ depth_vals=np.array(utils.read_allnum_lines(depth_path))
 depth_vals=depth_vals-depth_vals[0]
 depth_ts=np.array(utils.read_allnum_lines(ts_path))
 ts_norm_seconds=(depth_ts-depth_ts[0])
-plt.plot(ts_norm_seconds,depth_vals)
+plt.figure(dpi=1200)
+plt.plot(ts_norm_seconds, depth_vals, linewidth=0.5)
 plt.xlabel('Time (seconds)')
 plt.ylabel('Depth values mm')
-plt.savefig(r'C:\Users\lahir\Downloads\depth.png', dpi=600)
+plt.savefig(r'C:\Users\lahir\Downloads\depth.png',dpi=1200)
 
 #plot SW raw data
 path=r'D:\CPR_data_raw\P0\s1\smartwatch\03-12-2023-12-46-19.txt'

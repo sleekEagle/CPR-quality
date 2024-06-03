@@ -52,7 +52,7 @@ def show_video(dir_path,show_kypts,bb,model,camera='canon',crop=False,save_vid=N
         # image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
         if crop:
             center=image.shape[1]//2,image.shape[0]//2
-            crop_size=256
+            crop_size=512
             image = image[center[1]-crop_size//2:center[1]+crop_size//2, center[0]-crop_size//2:center[0]+crop_size//2]
         if save_vid:
             out_path=os.path.join(save_vid,f'{i}.jpg')
@@ -64,14 +64,14 @@ def show_video(dir_path,show_kypts,bb,model,camera='canon',crop=False,save_vid=N
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root_dir", type=str, default=r"D:\CPR_extracted", help="Path to data directory")
-    parser.add_argument("-p", type=str, default="P0", help="Path to participant directory")
-    parser.add_argument("-s", type=str, default="s_2", help="Path to session directory")
+    parser.add_argument("-p", type=str, default="P10", help="Path to participant directory")
+    parser.add_argument("-s", type=str, default="s_5", help="Path to session directory")
     parser.add_argument("--kypts", type=bool, default=False, help="Should kypts be displayed")
     parser.add_argument("--bb", type=bool, default=False, help="Should bounding bx be displayed")
     parser.add_argument("--kypt_model", type=str, default="mediapipe", help="model name used for keypoint detection. mmpose_finetuned_RHD2D, mediapipe, tracking")
     parser.add_argument("--camera", type=str, default="kinect", help="which camera is the data from> kinect or canon")
     parser.add_argument("--crop", type=bool, default=True, help="center crop the video")
-    parser.add_argument("--save_vid", type=str, default=r'C:\Users\lahir\Downloads\session', help="save the video to a file. blank to not save")
+    parser.add_argument("--save_vid", type=str, default=r'C:\Users\lahir\Downloads\session_kpt_overshoot', help="save the video to a file. blank to not save")
 
 
     args = parser.parse_args()

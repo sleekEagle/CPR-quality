@@ -3,7 +3,7 @@ import struct
 from datetime import datetime
 from pathlib import Path
 
-outpath=r'D:\april_data\test'
+outpath=r'C:\Users\lahir\data\EMS_data_collection'
 # today =  datetime.utcnow().strftime("%Y-%m-%d-%H_%M_%S")
 today = datetime.now().strftime("%Y-%m-%d-%H_%M_%S")
 outfile=Path(outpath)/("depth_sensor_"+str(today)+".txt")
